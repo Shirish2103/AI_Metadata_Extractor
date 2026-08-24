@@ -56,7 +56,7 @@ def resolve_config():
     # 2. Groq Cloud (Free Tier)
     groq_key = os.environ.get("GROQ_API_KEY") or (os.environ.get("OPENAI_API_KEY", "").startswith("gsk_") and os.environ.get("OPENAI_API_KEY"))
     if groq_key:
-        model = os.environ.get("OPENAI_MODEL", "llama-3.3-70b-versatile")
+        model = os.environ.get("OPENAI_MODEL", "openai/gpt-oss-20b")
         return "https://api.groq.com/openai/v1", groq_key, model, f"Groq ({model})"
 
     # 3. Google Gemini (Free Tier via OpenAI endpoint)
@@ -119,37 +119,50 @@ def _call_llm(user_content: str) -> dict | None:
         headers["HTTP-Referer"] = "http://localhost:8000"
         headers["X-Title"] = "ScriptTagger"
 
-    try:
-        resp = requests.post(f"{base_url}/chat/completions", headers=headers, json=payload, timeout=90)
-        if resp.status_code == 429:
-            err_data = resp.json().get("error", {}) if resp.text.startswith("{") else {}
-            if err_data.get("code") == "insufficient_quota":
-                _last_error_reason = f"{provider_label}: Quota Exceeded / Check Billing"
-            else:
-                _last_error_reason = f"{provider_label}: Rate Limit Exceeded (429)"
-            logger.warning("LLM enrichment failed: %s", _last_error_reason)
-            return None
-        elif resp.status_code == 401:
-            _last_error_reason = f"{provider_label}: Invalid API Key (401)"
-            logger.warning("LLM enrichment failed: 401 Unauthorized")
-            return None
-        resp.raise_for_status()
-        content = resp.json()["choices"][0]["message"]["content"]
+    candidate_models = [model]
+    if "groq.com" in base_url and model not in ["openai/gpt-oss-20b", "qwen/qwen3.6-27b", "groq/compound"]:
+        candidate_models.extend(["openai/gpt-oss-20b", "qwen/qwen3.6-27b", "groq/compound"])
 
-        cleaned_content = content.strip()
-        if cleaned_content.startswith("```"):
-            lines = cleaned_content.splitlines()
-            if lines[0].startswith("```"):
-                lines = lines[1:]
-            if lines and lines[-1].startswith("```"):
-                lines = lines[:-1]
-            cleaned_content = "\n".join(lines).strip()
+    for current_model in candidate_models:
+        payload["model"] = current_model
+        try:
+            resp = requests.post(f"{base_url}/chat/completions", headers=headers, json=payload, timeout=90)
+            if resp.status_code == 404 and len(candidate_models) > 1:
+                continue
+            if resp.status_code == 429:
+                err_data = resp.json().get("error", {}) if resp.text.startswith("{") else {}
+                if err_data.get("code") == "insufficient_quota":
+                    _last_error_reason = f"{provider_label}: Quota Exceeded / Check Billing"
+                else:
+                    _last_error_reason = f"{provider_label}: Rate Limit Exceeded (429)"
+                logger.warning("LLM enrichment failed: %s", _last_error_reason)
+                return None
+            elif resp.status_code == 401:
+                _last_error_reason = f"{provider_label}: Invalid API Key (401)"
+                logger.warning("LLM enrichment failed: 401 Unauthorized")
+                return None
+            resp.raise_for_status()
+            content = resp.json()["choices"][0]["message"]["content"]
+            _last_used_model = f"Groq ({current_model})" if "groq.com" in base_url else provider_label
 
-        return json.loads(cleaned_content)
-    except Exception as exc:
-        _last_error_reason = f"{provider_label} Error: {exc}"
-        logger.warning("LLM enrichment failed: %s", exc)
-        return None
+            cleaned_content = content.strip()
+            if cleaned_content.startswith("```"):
+                lines = cleaned_content.splitlines()
+                if lines[0].startswith("```"):
+                    lines = lines[1:]
+                if lines and lines[-1].startswith("```"):
+                    lines = lines[:-1]
+                cleaned_content = "\n".join(lines).strip()
+
+            return json.loads(cleaned_content)
+        except Exception as exc:
+            if current_model == candidate_models[-1]:
+                _last_error_reason = f"{provider_label} Error: {exc}"
+                logger.warning("LLM enrichment failed: %s", exc)
+                return None
+            continue
+
+    return None
 
 
 def _fallback_summary(text: str, title: str = "", reason: str = "") -> dict:
