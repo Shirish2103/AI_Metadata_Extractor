@@ -198,7 +198,7 @@ def _fallback_summary(text: str, title: str = "", reason: str = "") -> dict:
     return {
         "synopsis": synopsis,
         "themes": ["Drama", "Narrative Arc", "Dialogue", "Character Study"],
-        "compliance_flags": ["none"],
+        "compliance_flags": ["Compliance Flag"],
         "model": model_label,
     }
 

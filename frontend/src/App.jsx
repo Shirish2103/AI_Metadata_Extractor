@@ -560,7 +560,7 @@ export default function App() {
                       {meta.summary.compliance_flags.map((c, i) => (
                         <span key={i} className="chip chip-neg">
                           <ShieldAlert className="w-3 h-3" aria-hidden="true" />
-                          {c}
+                          {c.toLowerCase() === 'none' ? 'Compliance Flag' : c}
                         </span>
                       ))}
                     </div>
