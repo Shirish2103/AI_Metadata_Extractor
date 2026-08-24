@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <defs>
+    <linearGradient id="headerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E5484D"/>
+      <stop offset="50%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#0E9488"/>
+    </linearGradient>
+  </defs>
+  <!-- Gradient Background Container matching Header -->
+  <rect width="32" height="32" rx="8" fill="url(#headerGrad)" />
+  <!-- Lucide Clapperboard Icon -->
+  <g transform="translate(4, 4)" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M20.2 6 3 11l-.9-2.4c-.4-1.1.2-2.4 1.3-2.8l11.6-4.2c1.1-.4 2.4.2 2.8 1.3z"/>
+    <path d="m4 11 9-3.2"/>
+    <path d="M4 11v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-9Z"/>
+  </g>
+</svg>

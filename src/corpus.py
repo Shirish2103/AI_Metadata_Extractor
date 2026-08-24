@@ -1,0 +1,325 @@
+import re
+from pathlib import Path
+
+import pandas as pd
+
+from src.config import (
+    BERT_ANNO_DIR,
+    CHARACTER_TEXTS_DIR,
+    INDEX_CSV,
+    MANUAL_ANNO_DIR,
+    META_CSV,
+    OUTPUTS_DIR,
+    RAW_TEXTS_DIR,
+    RULE_BASED_DIR,
+)
+
+FILE_RE = re.compile(
+    r"^(?P<title>.+?)_(?P<imdbid>\d{7,9})(?:_[A-Za-z0-9 _-]+)?\.(?:txt|json)$"
+)
+
+_SEARCH_SPLIT_RE = re.compile(r"[^\w]+")
+
+
+def search_index(df: pd.DataFrame, query: str) -> pd.DataFrame:
+    """Title search shared by the API and the Streamlit UI: tokenized,
+    order/punctuation-insensitive, relevance-ranked.
+
+    A plain whole-string substring match (the previous approach) fails on
+    anything but an exact fragment -- e.g. searching "lion king" would never
+    match a stored title of "The.Lion.King.(2019)" (dots, not spaces) or
+    "King, Lion" (different word order). This instead requires every query
+    word to appear somewhere in the title (AND, any order, punctuation
+    ignored on both sides), then ranks matches: exact title match, then
+    starts-with, then contains the phrase as a substring (earlier position
+    first), then matched only via individual words.
+    """
+    query = (query or "").strip()
+    if not query or df.empty:
+        return df
+
+    titles = df["title"].fillna("")
+    norm_titles = titles.str.lower().str.replace(_SEARCH_SPLIT_RE, " ", regex=True).str.strip()
+    words = [w for w in _SEARCH_SPLIT_RE.split(query.lower()) if w]
+    if not words:
+        return df
+
+    mask = pd.Series(True, index=df.index)
+    for w in words:
+        mask &= norm_titles.str.contains(re.escape(w), regex=True, na=False)
+    matched = df[mask]
+    if matched.empty:
+        return matched
+
+    q_norm = " ".join(words)
+    matched_norm = norm_titles[mask]
+
+    def _rank(title_norm: str) -> tuple:
+        if title_norm == q_norm:
+            return (0, 0, title_norm)
+        if title_norm.startswith(q_norm):
+            return (1, 0, title_norm)
+        idx = title_norm.find(q_norm)
+        if idx >= 0:
+            return (2, idx, title_norm)
+        return (3, 0, title_norm)
+
+    order = matched_norm.map(_rank).sort_values().index
+    return matched.loc[order]
+
+
+def _scan_dir(directory: Path, suffix: str):
+    if not directory.exists():
+        return {}
+    out = {}
+    for p in directory.iterdir():
+        if p.name.endswith(suffix):
+            m = FILE_RE.match(p.name)
+            if m:
+                out[m.group("imdbid")] = p
+    return out
+
+
+def _build_index_from_outputs() -> pd.DataFrame:
+    """Lightweight catalog built from pre-tagged outputs/*.json.gz, used when the
+    raw Kaggle screenplay corpus isn't available (e.g. cached-only deployments)."""
+    import gzip
+    import json
+
+    rows = []
+    for p in sorted(OUTPUTS_DIR.glob("*.json.gz")):
+        try:
+            with gzip.open(p, "rt", encoding="utf-8") as f:
+                meta = json.load(f)
+        except Exception:
+            continue
+        imdbid = str(meta.get("imdb_id") or "").strip().zfill(7)
+        if not imdbid or imdbid == "0000000":
+            # No real IMDb id -- a user upload or pasted script, not a
+            # catalog movie. Use the output filename itself as a stable
+            # synthetic id (it's already the join key pipeline.py's
+            # load_cached_metadata/save_metadata use) so it still shows up
+            # in /scripts and can be re-selected later via that id.
+            name = p.name
+            imdbid = name[: -len(".json.gz")] if name.endswith(".json.gz") else p.stem
+        genres = meta.get("known_genres") or [
+            g.get("genre") for g in meta.get("genres", []) if isinstance(g, dict) and g.get("genre")
+        ]
+        if not isinstance(genres, list):
+            genres = [str(genres)]
+        rows.append(
+            {
+                "imdbid": imdbid,
+                "title": meta.get("title", ""),
+                "script_path": "",
+                "genres": ", ".join(str(g) for g in genres if g),
+                "year": meta.get("year"),
+                "has_rule_based": False,
+                "has_bert_anno": False,
+                "has_manual_anno": False,
+                "has_characters": False,
+                "rule_based_path": "",
+                "bert_anno_path": "",
+                "manual_anno_path": "",
+                "characters_path": "",
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def build_index() -> pd.DataFrame:
+    if not META_CSV.exists():
+        idx = _build_index_from_outputs()
+        idx.to_csv(INDEX_CSV, index=False)
+        return idx
+
+    raw = _scan_dir(RAW_TEXTS_DIR, ".txt")
+    rule_based = _scan_dir(RULE_BASED_DIR, ".json")
+    bert = _scan_dir(BERT_ANNO_DIR, ".txt")
+    manual = _scan_dir(MANUAL_ANNO_DIR, ".txt")
+
+    meta = pd.read_csv(META_CSV, dtype={"imdbid": str})
+    meta["imdbid"] = meta["imdbid"].str.zfill(7)
+
+    rows = []
+    for imdbid, path in raw.items():
+        char_dir = CHARACTER_TEXTS_DIR / path.stem
+        rows.append(
+            {
+                "imdbid": imdbid,
+                "title": path.stem.rsplit("_", 1)[0],
+                "script_path": str(path),
+                "has_rule_based": imdbid in rule_based,
+                "has_bert_anno": imdbid in bert,
+                "has_manual_anno": imdbid in manual,
+                "has_characters": char_dir.exists(),
+                "rule_based_path": str(rule_based[imdbid]) if imdbid in rule_based else "",
+                "bert_anno_path": str(bert[imdbid]) if imdbid in bert else "",
+                "manual_anno_path": str(manual[imdbid]) if imdbid in manual else "",
+                "characters_path": str(char_dir) if char_dir.exists() else "",
+            }
+        )
+    idx = pd.DataFrame(rows)
+    idx = idx.merge(meta, on="imdbid", how="left")
+    idx["title"] = idx["title_y"].fillna(idx["title_x"])
+    idx = idx.drop(columns=["title_x", "title_y"])
+    idx.to_csv(INDEX_CSV, index=False)
+    return idx
+
+
+_cached_index_df: pd.DataFrame | None = None
+
+
+def invalidate_index_cache():
+    global _cached_index_df
+    _cached_index_df = None
+
+
+def _fast_scan_outputs() -> pd.DataFrame:
+    rows = []
+    if not OUTPUTS_DIR.exists():
+        return pd.DataFrame()
+    for p in OUTPUTS_DIR.glob("*.json.gz"):
+        stem = p.name[:-8] if p.name.endswith(".json.gz") else p.stem
+        imdbid = stem
+        title = stem
+        if "_" in stem:
+            parts = stem.rsplit("_", 1)
+            if parts[1].isdigit() and len(parts[1]) >= 7:
+                title = parts[0].replace("_", " ")
+                imdbid = parts[1].zfill(7)
+            else:
+                title = stem.replace("_", " ")
+        else:
+            title = stem.replace("_", " ")
+        rows.append(
+            {
+                "imdbid": imdbid,
+                "title": title,
+                "script_path": "",
+                "genres": "",
+                "year": None,
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def load_index() -> pd.DataFrame:
+    global _cached_index_df
+    if _cached_index_df is not None and not _cached_index_df.empty:
+        return _cached_index_df
+
+    base_df = pd.DataFrame()
+    if INDEX_CSV.exists():
+        try:
+            base_df = pd.read_csv(INDEX_CSV, dtype={"imdbid": str})
+        except Exception as exc:
+            logger.warning("Failed reading INDEX_CSV: %s", exc)
+
+    output_df = _fast_scan_outputs()
+
+    if output_df.empty:
+        df = base_df if not base_df.empty else build_index()
+    elif base_df.empty:
+        df = output_df
+    else:
+        # Put newly uploaded/tagged outputs FIRST, then catalog base_df
+        df = pd.concat([output_df, base_df], ignore_index=True).drop_duplicates(subset=["imdbid"], keep="first")
+
+    _cached_index_df = df
+    return _cached_index_df
+
+
+def script_path(imdbid: str) -> Path:
+    imdbid = imdbid.zfill(7)
+    row = load_index()
+    row = row[row["imdbid"] == imdbid]
+    raw_path = row.iloc[0].get("script_path") if not row.empty else None
+    # An empty script_path written to the CSV index round-trips back as NaN
+    # (float), not "" — and NaN is truthy in Python, so a plain falsy check
+    # doesn't catch it. pd.isna() is required to detect both cases.
+    if row.empty or pd.isna(raw_path) or not raw_path:
+        raise KeyError(f"imdbid {imdbid} not in corpus")
+    path = Path(raw_path)
+    if not path.exists():
+        # The index can outlive the filesystem layout it was built against
+        # (e.g. a stale data/corpus_index.csv left over from a run with a
+        # different DATASET_ROOT/mount) — treat that the same as "not in
+        # corpus" rather than letting a raw FileNotFoundError surface.
+        raise KeyError(f"imdbid {imdbid} script file missing: {path}")
+    return path
+
+
+def read_script(imdbid: str) -> str:
+    p = script_path(imdbid)
+    try:
+        return p.read_text(encoding="utf-8", errors="replace")
+    except OSError as exc:
+        raise KeyError(f"script file for {imdbid} is not readable: {exc}") from exc
+
+
+def metadata_for(imdbid: str) -> dict:
+    imdbid = imdbid.zfill(7)
+    row = load_index()
+    row = row[row["imdbid"] == imdbid]
+    if row.empty:
+        return {}
+    return row.iloc[0].to_dict()
+
+
+def character_files(imdbid: str) -> list[tuple[str, str]]:
+    """Return list of (character_name, dialogue_text) from the movie_characters split."""
+    imdbid = imdbid.zfill(7)
+    row = load_index()
+    row = row[row["imdbid"] == imdbid]
+    if row.empty or not row.iloc[0]["has_characters"]:
+        return []
+    d = Path(row.iloc[0]["characters_path"])
+    out = []
+    for p in sorted(d.glob("*.txt")):
+        name = p.name[: -len("_text.txt")]
+        out.append((name, p.read_text(encoding="utf-8", errors="replace")))
+    return out
+
+
+def rule_based_annotation(imdbid: str):
+    """Return parsed rule-based annotation JSON for a movie (or None)."""
+    import json
+
+    imdbid = imdbid.zfill(7)
+    row = load_index()
+    row = row[row["imdbid"] == imdbid]
+    if row.empty or not row.iloc[0]["has_rule_based"]:
+        return None
+    with open(row.iloc[0]["rule_based_path"], encoding="utf-8") as f:
+        return json.load(f)
+
+
+def line_label_annotations(imdbid: str):
+    """Return (list of (label, data)) lines from BERT or manual annotations for training/eval."""
+    imdbid = imdbid.zfill(7)
+    row = load_index()
+    row = row[row["imdbid"] == imdbid]
+    if row.empty:
+        return []
+    r = row.iloc[0]
+    path = r["bert_anno_path"] if isinstance(r["bert_anno_path"], str) and r["bert_anno_path"] else r["manual_anno_path"]
+    if not isinstance(path, str) or not path:
+        return []
+    out = []
+    for line in Path(path).read_text(encoding="utf-8", errors="replace").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        if ": " in line and line.split(": ", 1)[0] in {"dialog", "scene_heading", "speaker_heading", "text"}:
+            label, data = line.split(": ", 1)
+            out.append((label, data))
+        else:
+            out.append(("text", line))
+    return out
+
+
+if __name__ == "__main__":
+    idx = build_index()
+    print(f"Indexed {len(idx)} scripts")
+    print(idx[["imdbid", "title", "has_rule_based", "has_characters"]].head(10))

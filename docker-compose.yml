@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    container_name: hackathon_api
+    command: python -m uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./api:/app/api
+      - ./src:/app/src
+      - ./frontend/dist:/app/frontend/dist
+      - ./data:/app/data
+      - ./outputs:/app/outputs
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DATASET_ROOT=${DATASET_ROOT:-}
+    develop:
+      watch:
+        - action: sync
+          path: ./api
+          target: /app/api
+        - action: sync
+          path: ./src
+          target: /app/src
+        - action: sync
+          path: ./frontend/dist
+          target: /app/frontend/dist
+        - action: rebuild
+          path: ./requirements.txt
+

@@ -1,0 +1,42 @@
+# Python / Virtual Environment
+.venv/
+venv/
+env/
+ENV/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+build/
+eggs/
+.eggs/
+
+# Datasets & Temporary Files
+data/corpus_index.csv
+outputs/
+*.sqlite
+*.db
+
+# Frontend & Node
+frontend/node_modules/
+frontend/dist-ssr/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+
+# IDE & System Files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
