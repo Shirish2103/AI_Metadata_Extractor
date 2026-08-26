@@ -73,6 +73,8 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [allScripts, setAllScripts] = useState([]);
   const [selectedMovie, setSelectedMovie] = useState(null);
+  const [outputsList, setOutputsList] = useState([]);
+  const [selectedOutput, setSelectedOutput] = useState(null);
   const [rawText, setRawText] = useState('');
   const [rawTitle, setRawTitle] = useState('Custom Script');
   const [file, setFile] = useState(null);
@@ -96,6 +98,18 @@ export default function App() {
     }
   };
 
+  const fetchOutputs = async () => {
+    try {
+      const res = await fetch('/api/outputs');
+      if (res.ok) {
+        const data = await res.json();
+        setOutputsList(data.results || []);
+      }
+    } catch (err) {
+      console.error('Failed fetching outputs:', err);
+    }
+  };
+
   const fetchScripts = async () => {
     try {
       const res = await fetch('/api/scripts?limit=100000&offset=0');
@@ -113,6 +127,7 @@ export default function App() {
   useEffect(() => {
     fetchHealth();
     fetchScripts();
+    fetchOutputs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -317,6 +332,7 @@ export default function App() {
             <div className="h-px w-full bg-gradient-to-r from-transparent via-[#E4DCCB] to-transparent my-6"></div>
 
             {/* Input Sections */}
+
             {mode === 'corpus' && (
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col sm:flex-row items-end gap-3">

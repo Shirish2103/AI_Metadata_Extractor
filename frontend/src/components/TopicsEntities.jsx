@@ -25,7 +25,6 @@ export default function TopicsEntities({ topics, entities }) {
           <p className="text-sm text-[#A49B8B] italic">No topics extracted.</p>
         )}
       </div>
-{/*
       <div className="ui-card rounded-xl p-6">
         <h3 className="text-sm font-bold text-[#221E1A] mb-4 flex items-center gap-2">
           <PenTool className="w-4 h-4 text-[#7C5CF0]" aria-hidden="true" />
@@ -56,7 +55,7 @@ export default function TopicsEntities({ topics, entities }) {
         ) : (
           <p className="text-sm text-[#A49B8B] italic">No named entities extracted.</p>
         )}
-      </div>*/}
+      </div>
     </div>
   );
 }
