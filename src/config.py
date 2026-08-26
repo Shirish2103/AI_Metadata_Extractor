@@ -8,9 +8,9 @@ MODELS_DIR = DATA_DIR / "models"
 INDEX_CSV = DATA_DIR / "corpus_index.csv"
 
 POSSIBLE_ROOTS = [
+    Path("/home/shaury/Desktop/machine learning/dataset/archive (3)"),
     Path("D:/Downloads/archive"),
     Path("C:/Downloads/archive"),
-    Path("/home/shaury/Desktop/machine learning/dataset/archive (3)"),
 ]
 
 # Lets a one-off local run (e.g. training the genre classifier) point at

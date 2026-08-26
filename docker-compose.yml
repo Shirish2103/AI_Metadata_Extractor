@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   api:
@@ -10,7 +10,6 @@ services:
     volumes:
       - ./api:/app/api
       - ./src:/app/src
-      - ./frontend/dist:/app/frontend/dist
       - ./data:/app/data
       - ./outputs:/app/outputs
     environment:
@@ -24,9 +23,5 @@ services:
         - action: sync
           path: ./src
           target: /app/src
-        - action: sync
-          path: ./frontend/dist
-          target: /app/frontend/dist
         - action: rebuild
           path: ./requirements.txt
-

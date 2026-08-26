@@ -130,12 +130,18 @@ def list_outputs():
 @app.get("/api/outputs/{filename:path}")
 def get_output_metadata(filename: str):
     outputs_dir = PROJECT_ROOT / "outputs"
-    target = outputs_dir / filename
+    # Prevent path traversal: resolve and ensure target stays within outputs_dir
+    try:
+        target = (outputs_dir / filename).resolve()
+        if not target.is_relative_to(outputs_dir.resolve()):
+            raise HTTPException(400, "Invalid filename")
+    except Exception:
+        raise HTTPException(400, "Invalid filename")
     if not target.exists():
         if (outputs_dir / f"{filename}.json.gz").exists():
-            target = outputs_dir / f"{filename}.json.gz"
+            target = (outputs_dir / f"{filename}.json.gz").resolve()
         elif (outputs_dir / f"{filename}.json").exists():
-            target = outputs_dir / f"{filename}.json"
+            target = (outputs_dir / f"{filename}.json").resolve()
         else:
             raise HTTPException(404, f"Output metadata file '{filename}' not found")
     try:
@@ -207,8 +213,6 @@ def _ensure_summary(meta: dict, use_llm: bool, force_refresh: bool = False) -> d
                         lines.append(d["text"])
             sample_text = "\n".join(lines) if lines else meta.get("title", "")
             meta["summary"] = summarize.generate(sample_text, title=meta.get("title", ""))
-    elif not use_llm and meta and isinstance(meta, dict):
-        meta.pop("summary", None)
     return meta
 
 

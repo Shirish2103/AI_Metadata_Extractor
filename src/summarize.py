@@ -116,7 +116,6 @@ def _call_llm(user_content: str) -> dict | None:
 
     headers = {"Authorization": f"Bearer {api_key}"}
     if "openrouter" in base_url:
-        headers["HTTP-Referer"] = "http://localhost:8000"
         headers["X-Title"] = "ScriptTagger"
 
     candidate_models = [model]
@@ -198,7 +197,7 @@ def _fallback_summary(text: str, title: str = "", reason: str = "") -> dict:
     return {
         "synopsis": synopsis,
         "themes": ["Drama", "Narrative Arc", "Dialogue", "Character Study"],
-        "compliance_flags": ["Compliance Flag"],
+        "compliance_flags": [],
         "model": model_label,
     }
 

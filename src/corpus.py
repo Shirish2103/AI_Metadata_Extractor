@@ -1,7 +1,11 @@
+import logging
 import re
 from pathlib import Path
 
 import pandas as pd
+
+logger = logging.getLogger(__name__)
+
 
 from src.config import (
     BERT_ANNO_DIR,
@@ -161,8 +165,11 @@ def build_index() -> pd.DataFrame:
         )
     idx = pd.DataFrame(rows)
     idx = idx.merge(meta, on="imdbid", how="left")
-    idx["title"] = idx["title_y"].fillna(idx["title_x"])
-    idx = idx.drop(columns=["title_x", "title_y"])
+    if "title_y" in idx.columns:
+        idx["title"] = idx["title_y"].fillna(idx["title_x"])
+        idx = idx.drop(columns=["title_x", "title_y"])
+    elif "title_x" in idx.columns:
+        idx = idx.rename(columns={"title_x": "title"})
     idx.to_csv(INDEX_CSV, index=False)
     return idx
 
@@ -218,13 +225,19 @@ def load_index() -> pd.DataFrame:
 
     output_df = _fast_scan_outputs()
 
-    if output_df.empty:
+    # If the cached index is empty/stale but the dataset is present, rebuild
+    # so the catalog actually shows movies instead of falling back to 1 output row.
+    if base_df.empty and (META_CSV.exists() or RAW_TEXTS_DIR.exists()):
+        logger.info("Cached index empty/stale but dataset found — rebuilding corpus index...")
+        df = build_index()
+    elif output_df.empty:
         df = base_df if not base_df.empty else build_index()
     elif base_df.empty:
         df = output_df
     else:
-        # Put newly uploaded/tagged outputs FIRST, then catalog base_df
-        df = pd.concat([output_df, base_df], ignore_index=True).drop_duplicates(subset=["imdbid"], keep="first")
+        # Put catalog base_df FIRST so real script_path wins,
+        # then append outputs for movies not in catalog
+        df = pd.concat([base_df, output_df], ignore_index=True).drop_duplicates(subset=["imdbid"], keep="first")
 
     _cached_index_df = df
     return _cached_index_df

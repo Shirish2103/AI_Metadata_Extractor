@@ -15,14 +15,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Build lightweight dependencies (optimized for 512MB RAM cloud containers)
+# Install full dependencies (includes torch, transformers, keybert for all features)
 COPY requirements.txt .
-RUN grep -v -E "torch|torchvision|sentence-transformers|keybert|transformers" requirements.txt > requirements-light.txt \
-    && pip install --no-cache-dir -r requirements-light.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Cached-outputs + user-upload deployment: no raw dataset is available at
-# build or run time, so bake in a lightweight spaCy model instead of relying
-# on the app's runtime download-on-first-use fallback.
+# Bake in spaCy model and NLTK data
 ENV SPACY_MODEL=en_core_web_sm
 RUN python -m spacy download en_core_web_sm \
     && python -c "import nltk; nltk.download('stopwords')"
@@ -33,8 +30,9 @@ COPY . .
 COPY --from=frontend /frontend/dist ./frontend/dist
 
 ENV PYTHONUNBUFFERED=1
+ENV PORT=8000
 
-# Hugging Face Spaces (Docker SDK) routes to this port by default.
-EXPOSE 7860
+# Default port 8000; HF Spaces can override via PORT env var
+EXPOSE 8000
 
-CMD ["python", "-m", "uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "7860"]
+CMD ["sh", "-c", "uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

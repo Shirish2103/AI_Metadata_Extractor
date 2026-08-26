@@ -1,30 +1,24 @@
 # ScriptTagger — AI-Powered Screenplay & Media Metadata Extraction Pipeline
 
-[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.100%2B-009688.svg)](https://fastapi.tiangolo.com/)
-[![React](https://img.shields.io/badge/React-19.0-61DAFB.svg)](https://react.dev/)
-[![Docker](https://img.shields.io/badge/Docker-Supported-2496ED.svg)](https://www.docker.com/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-
 **ScriptTagger** is an end-to-end NLP & Machine Learning pipeline designed to ingest movie screenplays and media subtitle transcripts (`.txt`, `.srt`) and automatically extract rich, structured metadata for content indexing, archiving, recommendations, compliance, and deep media analytics.
 
 ---
 
-## 🌟 Key Features
+## Key Features
 
-- 🎬 **Scene & Timestamp Segmentation**: Automatically parses scene headings (`INT.`, `EXT.`, `DAY`, `NIGHT`) and converts script flow into timestamped segments (`00:00 - 02:15`).
-- 🗣️ **Speaker & Character Extraction**: Identifies canonical character names, attributes speech lines, calculates word shares, and enriches speaker profiles with gender inference.
-- 💬 **Full Dialogue Extraction**: Captures per-scene dialogue breakdowns, speaker attributions, and parentheticals. Supports both full screenplay format and subtitle transcripts (`.srt` with cue & tag stripping).
-- 🏷️ **Topics & Keyphrase Mining**: Extracts key topics per scene and overall using RAKE, TF-IDF, and KeyBERT phrase scoring algorithms.
-- 🔍 **Named Entity Recognition (NER)**: Identifies people, organizations, locations, and products using spaCy (`en_core_web_sm` / `en_core_web_lg`) and cross-links entities with script speakers.
-- 🎭 **Sentiment & Emotion Analysis**: Performs VADER sentiment scoring per line/scene alongside an optional Hugging Face Transformer emotion classification model (RoBERTa).
-- 🍿 **Multi-Label Genre Classification**: Scikit-Learn OneVsRest TF-IDF + Logistic Regression model pre-trained on movie screenplays to predict top movie genres (Drama, Action, Sci-Fi, Comedy, etc.).
-- 📦 **Gzip Compressed Storage**: Compresses heavy script JSON metadata output down to `.json.gz` files, reducing storage footprint by ~90% (~900MB reduced to ~100MB).
-- 💻 **Modern React 19 & Streamlit Dashboards**: Includes a sleek dark-mode React 19 dashboard built with Vite, Tailwind CSS, and Recharts, alongside a standalone Streamlit analytics UI.
+- **Scene & Timestamp Segmentation**: Automatically parses scene headings (`INT.`, `EXT.`, `DAY`, `NIGHT`) and converts script flow into timestamped segments (`00:00 - 02:15`).
+- **Speaker & Character Extraction**: Identifies canonical character names, attributes speech lines, calculates word shares, and enriches speaker profiles with gender inference.
+- **Full Dialogue Extraction**: Captures per-scene dialogue breakdowns, speaker attributions, and parentheticals. Supports both full screenplay format and subtitle transcripts (`.srt` with cue & tag stripping).
+- **Topics & Keyphrase Mining**: Extracts key topics per scene and overall using RAKE, TF-IDF, and KeyBERT phrase scoring algorithms.
+- **Named Entity Recognition (NER)**: Identifies people, organizations, locations, and products using spaCy (`en_core_web_sm` / `en_core_web_lg`) and cross-links entities with script speakers.
+- **Sentiment & Emotion Analysis**: Performs VADER sentiment scoring per line/scene alongside an optional Hugging Face Transformer emotion classification model (RoBERTa).
+- **Multi-Label Genre Classification**: Scikit-Learn OneVsRest TF-IDF + Logistic Regression model pre-trained on movie screenplays to predict top movie genres (Drama, Action, Sci-Fi, Comedy, etc.).
+- **Gzip Compressed Storage**: Compresses heavy script JSON metadata output down to `.json.gz` files, reducing storage footprint by ~90% (~900MB reduced to ~100MB).
+- **Modern React 19 Dashboard**: Includes a sleek dark-mode React 19 dashboard built with Vite, Tailwind CSS, and Recharts.
 
 ---
 
-## 🏗️ System Architecture
+## System Architecture
 
 ```
                        ┌──────────────────────────────┐
@@ -76,10 +70,10 @@
 
 ---
 
-## 📁 Repository Structure
+## Repository Structure
 
 ```
-Metadata_Tagging/
+AI_Metadata_Extractor/
 ├── api/
 │   └── main.py                 # FastAPI backend application & static React host
 ├── frontend/                   # React 19 + Vite + Tailwind CSS Web Dashboard
@@ -89,11 +83,9 @@ Metadata_Tagging/
 │   │   └── main.jsx            # React entry point
 │   ├── package.json
 │   └── vite.config.js
-├── ui/
-│   └── app.py                  # Streamlit standalone interactive dashboard
 ├── src/                        # Core NLP Engine & Algorithms
 │   ├── config.py               # Path & environment configuration
-│   ├── corpus.py               # Corpus indexer & fast mtime-cached catalog lookup
+│   ├── corpus.py               # Corpus indexer & cached catalog lookup
 │   ├── parser.py               # Screenplay structural parser (scenes, speakers, dialogue)
 │   ├── srt.py                  # Subtitle (.srt) detector & cleaner
 │   ├── segmentation.py         # Timestamp assignment per scene
@@ -102,10 +94,13 @@ Metadata_Tagging/
 │   ├── topics.py               # Keyphrase extraction (RAKE / TF-IDF / KeyBERT)
 │   ├── sentiment.py            # VADER & Transformer emotion classifier
 │   ├── classify.py             # Multi-label genre classification
-│   └── pipeline.py             # End-to-end pipeline orchestrator & JSON saver
+│   ├── pipeline.py             # End-to-end pipeline orchestrator & JSON saver
+│   ├── metadata_schema.py      # Pydantic models for metadata validation
+│   └── summarize.py            # LLM/fallback summarization engine
 ├── scripts/
 │   ├── tag_corpus.py           # Multi-threaded parallel batch tagger
-│   └── recompute_sentiment.py  # Batch sentiment update utility
+│   ├── recompute_sentiment.py  # Batch sentiment update utility
+│   └── precompute_summaries.py # Batch summary precomputation utility
 ├── evaluate/
 │   └── evaluate.py             # Accuracy evaluation script against ScreenPy annotations
 ├── outputs/                    # Pre-tagged .json.gz output metadata files
@@ -119,35 +114,34 @@ Metadata_Tagging/
 
 ---
 
-## 🚀 Quick Start Guide
+## Quick Start Guide
 
 ### Option 1: Running with Docker (Recommended)
 
 #### A. Standalone Docker Container
 
-Build and run the lightweight container with pre-baked models and outputs:
+Build and run the container with pre-baked models and outputs:
 
 ```bash
 # Build the image
 docker build -t scripttagger .
 
 # Run the container
-docker run -p 7860:7860 scripttagger
+docker run -p 8000:8000 scripttagger
 ```
 
-- **React Dashboard**: [http://localhost:7860](http://localhost:7860)
-- **API Documentation**: [http://localhost:7860/docs](http://localhost:7860/docs)
+- **React Dashboard**: [http://localhost:8000](http://localhost:8000)
+- **API Documentation**: [http://localhost:8000/docs](http://localhost:8000/docs)
 
 #### B. Local Development with Docker Compose
 
 Run full local development environment with live hot-reloading:
 
 ```bash
-docker compose up --build
-```
+`docker compose up --build
+````
 
 - **React + FastAPI Web Application**: [http://localhost:8000](http://localhost:8000)
-- **Streamlit UI Dashboard**: [http://localhost:8501](http://localhost:8501)
 
 ---
 
@@ -206,14 +200,7 @@ npm run dev
 ```
 - Open **[http://localhost:5173](http://localhost:5173)** (proxies API calls to port 8000).
 
-### 2. Standalone Streamlit Dashboard
-
-```bash
-streamlit run ui/app.py
-```
-- Open **[http://localhost:8501](http://localhost:8501)**.
-
-### 3. Multi-Threaded Batch Tagging
+### 2. Multi-Threaded Batch Tagging
 
 Process full script catalog in parallel using worker threads:
 
@@ -221,7 +208,7 @@ Process full script catalog in parallel using worker threads:
 python scripts/tag_corpus.py --workers 8
 ```
 
-### 4. Run Model Evaluation Benchmark
+### 3. Run Model Evaluation Benchmark
 
 ```bash
 python evaluate/evaluate.py --sample 30
@@ -229,7 +216,7 @@ python evaluate/evaluate.py --sample 30
 
 ---
 
-## 🔌 API Reference
+## API 
 
 | Endpoint | Method | Description |
 | :--- | :--- | :--- |
@@ -244,7 +231,7 @@ python evaluate/evaluate.py --sample 30
 
 ---
 
-## 📊 Sample Output Metadata Schema
+## Sample Output Metadata Schema
 
 Below is an example JSON output generated by the pipeline (`outputs/*.json.gz`):
 
@@ -306,17 +293,17 @@ Below is an example JSON output generated by the pipeline (`outputs/*.json.gz`):
 
 ---
 
-## 🛠️ Recent Improvements & Changelog
+##  Recent Improvements & Changelog
 
 - **File Upload Dialogue Extraction**: Updated `/api/tag/upload` in `api/main.py` and `frontend/src/App.jsx` to default `include_dialogue=True`, ensuring uploaded `.txt` and `.srt` transcripts preserve per-scene dialogue breakdowns.
 - **Pre-Tagged Outputs Dropdown Selector**: Integrated an output folder selector in `frontend/src/App.jsx` connected to `GET /api/outputs` to load pre-tagged movie metadata instantaneously.
-- **Fast Output Index Caching**: Optimized `src/corpus.py` to cache output indices using file modification timestamps (`mtime`), reducing search keystroke latency from ~4.2s to ~0.01s (100x+ speedup).
+- **Fast Output Index Caching**: Optimized `src/corpus.py` with in-memory index caching and invalidation, reducing search latency from ~4.2s to ~0.01s (100x+ speedup).
 - **Subtitle (.SRT) Format Support**: Added `src/srt.py` to detect `.srt` subtitle files, stripping cue numbers, timestamps, and HTML formatting tags before screenplay parsing.
 - **Enhanced Search Engine**: Implemented `src/corpus.search_index` featuring multi-word fuzzy matching and word position re-ranking.
 - **Dockerized Multi-Stage Build**: Configured a production multi-stage Docker build compiling React 19 frontend assets and embedding spaCy/NLTK models inside a single lightweight container.
 
 ---
 
-## 📜 License
+##  License
 
 This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.

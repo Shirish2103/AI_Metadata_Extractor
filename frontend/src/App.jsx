@@ -98,7 +98,7 @@ export default function App() {
 
   const fetchScripts = async () => {
     try {
-      const res = await fetch('/api/scripts?limit=5000&offset=0');
+      const res = await fetch('/api/scripts?limit=100000&offset=0');
       if (res.ok) {
         const data = await res.json();
         const results = data.results || [];

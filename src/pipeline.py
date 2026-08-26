@@ -185,10 +185,8 @@ def save_metadata(imdb_id: str, meta: dict, outputs_dir: Path = OUTPUTS_DIR) -> 
     else:
         filename = "script_metadata.json.gz"
 
-    # Do not persist LLM summary in outputs/ cache files so a new summary is generated every time
+    # Persist all metadata including precomputed summaries
     data_to_save = dict(meta) if isinstance(meta, dict) else meta
-    if isinstance(data_to_save, dict):
-        data_to_save = {k: v for k, v in data_to_save.items() if k != "summary"}
 
     out = outputs_dir / filename
     with gzip.open(out, "wt", encoding="utf-8") as f:

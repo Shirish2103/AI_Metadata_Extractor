@@ -55,7 +55,7 @@ def _training_frame():
         if not genres:
             continue
         script_text = _script_sample(r.get("script_path"))
-        meta_parts = [str(m.iloc[0].get(c)) for c in ("plot", "keywords", "synopsis", "plot outline", "title")]
+        meta_parts = [str(v) for c in ("plot", "keywords", "synopsis", "plot outline", "title") if (v := m.iloc[0].get(c)) is not None]
         meta_text = " ".join(p for p in meta_parts if isinstance(p, str))
         text = script_text + (" " + meta_text if script_text else "")
         if not text:
@@ -73,7 +73,7 @@ def _training_frame():
         genres = _genres_list(m.get("genres"))
         if not genres:
             continue
-        parts = [str(m.get(c)) for c in ("plot", "keywords", "synopsis", "plot outline", "title")]
+        parts = [str(v) for c in ("plot", "keywords", "synopsis", "plot outline", "title") if (v := m.get(c)) is not None]
         text = " ".join(p for p in parts if isinstance(p, str))
         if len(text) < 100:
             continue
