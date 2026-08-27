@@ -7,17 +7,17 @@ import {
 const COLORS = {
   bar: '#E5484D',
   area: '#0E9488',
-  grid: '#E4DCCB',
-  tick: '#6E675B',
+  grid: 'rgba(255,255,255,0.1)',
+  tick: '#A3A3A3',
   pie: ['#E5484D', '#F59E0B', '#0E9488', '#7C5CF0', '#1FA45C'],
 };
 
 const TOOLTIP_STYLE = {
-  background: '#FFFFFF',
-  border: '1px solid #E4DCCB',
+  background: '#111111',
+  border: '1px solid rgba(255,255,255,0.1)',
   borderRadius: 8,
   fontSize: 12,
-  color: '#221E1A',
+  color: '#111111',
 };
 
 export default function AnalyticsCharts({ overall }) {
@@ -42,7 +42,7 @@ export default function AnalyticsCharts({ overall }) {
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 animate-fade-in">
       {overall.topics?.length > 0 && (
         <div className="ui-card rounded-xl p-6">
-          <h4 className="text-sm font-bold text-[#221E1A] mb-4">Top Topics (RAKE + KeyBERT)</h4>
+          <h4 className="text-sm font-bold text-white mb-4">Top Topics (RAKE + KeyBERT)</h4>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={topicChartData} margin={{ top: 4, right: 8, bottom: 4, left: -20 }}>
@@ -59,7 +59,7 @@ export default function AnalyticsCharts({ overall }) {
 
       {emotionChartData.length > 0 && (
         <div className="ui-card rounded-xl p-6">
-          <h4 className="text-sm font-bold text-[#221E1A] mb-4">Emotion Distribution</h4>
+          <h4 className="text-sm font-bold text-white mb-4">Emotion Distribution</h4>
           <div className="h-64 flex items-center justify-center">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -70,7 +70,7 @@ export default function AnalyticsCharts({ overall }) {
                   innerRadius={55}
                   outerRadius={90}
                   paddingAngle={3}
-                  stroke="#FFFFFF"
+                  stroke="#111111"
                 >
                   {emotionChartData.map((_, i) => (
                     <Cell key={i} fill={COLORS.pie[i % COLORS.pie.length]} />
@@ -78,9 +78,9 @@ export default function AnalyticsCharts({ overall }) {
                 </Pie>
                 <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => `${v}%`} />
                 <Legend
-                  wrapperStyle={{ fontSize: 11, color: '#6E675B' }}
+                  wrapperStyle={{ fontSize: 11, color: '#A3A3A3' }}
                   iconSize={8}
-                  formatter={(name) => <span className="text-[#6E675B]">{name}</span>}
+                  formatter={(name) => <span className="text-neutral-400">{name}</span>}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -90,7 +90,7 @@ export default function AnalyticsCharts({ overall }) {
 
       {sentimentTimeline.length > 0 && (
         <div className="ui-card rounded-xl p-6 lg:col-span-2">
-          <h4 className="text-sm font-bold text-[#221E1A] mb-4">Sentiment Timeline by Scene</h4>
+          <h4 className="text-sm font-bold text-white mb-4">Sentiment Timeline by Scene</h4>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={sentimentTimeline} margin={{ top: 4, right: 8, bottom: 4, left: -20 }}>
@@ -113,7 +113,7 @@ export default function AnalyticsCharts({ overall }) {
 
       {!overall.topics?.length && !emotionChartData.length && !overall.sentiment_timeline?.length && (
         <div className="ui-card rounded-xl p-10 text-center lg:col-span-2">
-          <p className="text-sm text-[#A49B8B]">No chart data available — analyze a script first.</p>
+          <p className="text-sm text-neutral-500">No chart data available — analyze a script first.</p>
         </div>
       )}
     </div>

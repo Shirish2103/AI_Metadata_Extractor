@@ -17,11 +17,11 @@ export default function JsonViewer({ meta, onCopy, copied }) {
 
   return (
     <div className="ui-card rounded-xl overflow-hidden animate-fade-in">
-      <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[#E4DCCB] bg-[#F1EDE4]">
-        <div className="flex items-center gap-2 text-xs font-semibold text-[#221E1A]">
+      <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-white/10 bg-white/5">
+        <div className="flex items-center gap-2 text-xs font-semibold text-white">
           <FileCode2 className="w-4 h-4 text-[#E5484D]" aria-hidden="true" />
           metadata.json
-          <span className="text-[#A49B8B] font-mono">({(json.length / 1024).toFixed(1)} KB)</span>
+          <span className="text-neutral-500 font-mono">({(json.length / 1024).toFixed(1)} KB)</span>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -32,7 +32,7 @@ export default function JsonViewer({ meta, onCopy, copied }) {
           >
             {copied ? (
               <>
-                <Check className="w-3.5 h-3.5 text-[#178A4C]" aria-hidden="true" /> Copied
+                <Check className="w-3.5 h-3.5 text-emerald-500" aria-hidden="true" /> Copied
               </>
             ) : (
               <>
@@ -45,7 +45,7 @@ export default function JsonViewer({ meta, onCopy, copied }) {
           </button>
         </div>
       </div>
-      <pre className="p-4 text-xs leading-relaxed text-[#221E1A] bg-[#F7F3EC] font-mono overflow-auto max-h-[520px]">
+      <pre className="p-4 text-xs leading-relaxed text-white bg-white/5 font-mono overflow-auto max-h-[520px]">
         {json}
       </pre>
     </div>

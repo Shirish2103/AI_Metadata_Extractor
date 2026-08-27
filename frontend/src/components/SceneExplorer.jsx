@@ -8,8 +8,8 @@ export default function SceneExplorer({ segments }) {
   if (!segments || segments.length === 0) {
     return (
       <div className="ui-card rounded-xl p-10 text-center">
-        <Film className="w-6 h-6 text-[#A49B8B] mx-auto mb-2" aria-hidden="true" />
-        <p className="text-sm text-[#6E675B]">No scene segments parsed for this script.</p>
+        <Film className="w-6 h-6 text-neutral-500 mx-auto mb-2" aria-hidden="true" />
+        <p className="text-sm text-neutral-400">No scene segments parsed for this script.</p>
       </div>
     );
   }
@@ -52,15 +52,15 @@ export default function SceneExplorer({ segments }) {
       {/* Scene detail */}
       <div className="ui-card rounded-xl p-6 flex flex-col gap-6">
         {/* Heading banner */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-[#E4DCCB]">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-white/10">
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-[#6E675B]">
+            <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-neutral-400">
               <span className="chip chip-crimson">Scene #{currentScene.segment_id || selectedIndex + 1}</span>
-              <span className="flex items-center gap-1 font-mono text-[#6E675B]">
+              <span className="flex items-center gap-1 font-mono text-neutral-400">
                 <Clock className="w-3 h-3" aria-hidden="true" /> {currentScene.start} – {currentScene.end}
               </span>
             </div>
-            <h3 className="font-display text-2xl tracking-wide text-[#221E1A] mt-2 leading-none break-words">
+            <h3 className="font-display text-2xl tracking-wide text-white mt-2 leading-none break-words">
               {currentScene.heading || 'UNNAMED SCENE'}
             </h3>
           </div>
@@ -68,13 +68,13 @@ export default function SceneExplorer({ segments }) {
           <div className="flex items-center gap-2 shrink-0">
             {currentScene.location && (
               <span className="chip chip-amber">
-                <MapPin className="w-3 h-3 text-[#B97A0B]" aria-hidden="true" />
+                <MapPin className="w-3 h-3 text-amber-500" aria-hidden="true" />
                 {currentScene.location}
               </span>
             )}
             {currentScene.time_of_day && (
               <span className="chip chip-teal">
-                <Clock className="w-3 h-3 text-[#0B7F74]" aria-hidden="true" />
+                <Clock className="w-3 h-3 text-teal-500" aria-hidden="true" />
                 {currentScene.time_of_day}
               </span>
             )}
@@ -83,7 +83,7 @@ export default function SceneExplorer({ segments }) {
 
         {/* Scene stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className="bg-[#F1EDE4] rounded-lg p-3.5 border border-[#E4DCCB]">
+          <div className="bg-white/5 rounded-lg p-3.5 border border-white/10">
             <div className="eyebrow flex items-center gap-1.5 mb-2">
               <Users className="w-3.5 h-3.5" aria-hidden="true" /> Speakers
             </div>
@@ -95,12 +95,12 @@ export default function SceneExplorer({ segments }) {
                   </span>
                 ))
               ) : (
-                <span className="text-xs text-[#A49B8B] italic">No speakers identified</span>
+                <span className="text-xs text-neutral-500 italic">No speakers identified</span>
               )}
             </div>
           </div>
 
-          <div className="bg-[#F1EDE4] rounded-lg p-3.5 border border-[#E4DCCB]">
+          <div className="bg-white/5 rounded-lg p-3.5 border border-white/10">
             <div className="eyebrow flex items-center gap-1.5 mb-2">
               <Tag className="w-3.5 h-3.5" aria-hidden="true" /> Topics
             </div>
@@ -112,15 +112,15 @@ export default function SceneExplorer({ segments }) {
                   </span>
                 ))
               ) : (
-                <span className="text-xs text-[#A49B8B] italic">No topics extracted</span>
+                <span className="text-xs text-neutral-500 italic">No topics extracted</span>
               )}
             </div>
           </div>
 
-          <div className="bg-[#F1EDE4] rounded-lg p-3.5 border border-[#E4DCCB]">
+          <div className="bg-white/5 rounded-lg p-3.5 border border-white/10">
             <div className="flex items-center justify-between eyebrow mb-2">
               <span>Tone &amp; Score</span>
-              <span className="font-mono tnum text-[#6E675B]">{(sentiment.compound || 0).toFixed(2)}</span>
+              <span className="font-mono tnum text-neutral-400">{(sentiment.compound || 0).toFixed(2)}</span>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <span className={`chip ${toneChip}`}>{sentiment.label || 'neutral'}</span>
@@ -137,7 +137,7 @@ export default function SceneExplorer({ segments }) {
         {/* Dialogue */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h4 className="text-sm font-bold text-[#221E1A] flex items-center gap-2">
+            <h4 className="text-sm font-bold text-white flex items-center gap-2">
               <MessageSquare className="w-4 h-4 text-[#E5484D]" aria-hidden="true" />
               Dialogue Breakdown ({dialogueLines.length} lines)
             </h4>
@@ -155,32 +155,32 @@ export default function SceneExplorer({ segments }) {
                 return (
                   <li
                     key={i}
-                    className="bg-[#F7F3EC] rounded-lg p-3 border border-[#E4DCCB] flex items-start gap-3"
+                    className="bg-white/5 rounded-lg p-3 border border-white/10 flex items-start gap-3"
                   >
                     <span
-                      className="h-7 w-7 rounded bg-[#FEF3E2] border border-[#F6DFB2] flex items-center justify-center text-xs font-bold text-[#B97A0B] shrink-0 font-mono"
+                      className="h-7 w-7 rounded bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-xs font-bold text-amber-500 shrink-0 font-mono"
                       aria-hidden="true"
                     >
                       {(d.speaker || '?').charAt(0).toUpperCase()}
                     </span>
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-xs font-bold text-[#B97A0B] uppercase tracking-wide">
+                        <span className="text-xs font-bold text-amber-500 uppercase tracking-wide">
                           {d.speaker || 'UNKNOWN'}
                         </span>
                         {d.parenthetical && (
-                          <span className="text-[11px] text-[#6E675B] italic">({d.parenthetical})</span>
+                          <span className="text-[11px] text-neutral-400 italic">({d.parenthetical})</span>
                         )}
                         {lineTone && <span className={cn('chip', lineTone)}>{d.sentiment.label}</span>}
                       </div>
-                      <p className="text-xs text-[#221E1A] mt-1 leading-relaxed break-words">{d.text}</p>
+                      <p className="text-xs text-white mt-1 leading-relaxed break-words">{d.text}</p>
                     </div>
                   </li>
                 );
               })}
             </ul>
           ) : (
-            <div className="bg-[#F7F3EC] rounded-lg p-4 text-center text-xs text-[#A49B8B] border border-[#E4DCCB]">
+            <div className="bg-white/5 rounded-lg p-4 text-center text-xs text-neutral-500 border border-white/10">
               Dialogue lines not cached for this scene — re-analyze with dialogue included to view them.
             </div>
           )}

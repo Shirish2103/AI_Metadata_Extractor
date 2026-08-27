@@ -45,7 +45,7 @@ const STEPS = [
   {
     n: '01',
     icon: Layers,
-    color: 'bg-[#FBE9E9] text-[#C93B40]',
+    color: 'bg-[#E5484D]/10 text-[#E5484D]',
     chip: 'chip-crimson',
     title: 'Pick a Script',
     desc: 'Choose from 2,800+ movie screenplays, upload your own .txt file, or paste raw transcript text.',
@@ -53,7 +53,7 @@ const STEPS = [
   {
     n: '02',
     icon: Zap,
-    color: 'bg-[#FEF3E2] text-[#B97A0B]',
+    color: 'bg-[#F59E0B]/10 text-[#F59E0B]',
     chip: 'chip-amber',
     title: 'Run the Pipeline',
     desc: 'The NLP engine splits the script into scenes, then tags speakers, topics, sentiment and emotion — per scene.',
@@ -61,7 +61,7 @@ const STEPS = [
   {
     n: '03',
     icon: BarChart3,
-    color: 'bg-[#E2F3F1] text-[#0B7F74]',
+    color: 'bg-[#0E9488]/10 text-[#0E9488]',
     chip: 'chip-teal',
     title: 'Explore & Export',
     desc: 'Browse scene-by-scene breakdowns, character profiles and tone charts — then copy or download the full JSON.',
@@ -88,6 +88,7 @@ export default function App() {
   const [copied, setCopied] = useState(false);
   const [apiConnected, setApiConnected] = useState(false);
   const [activeTab, setActiveTab] = useState('scenes');
+  const [isAppOpen, setIsAppOpen] = useState(false);
 
   const fetchHealth = async () => {
     try {
@@ -227,17 +228,24 @@ export default function App() {
     { id: 'json', label: 'JSON', icon: FileJson },
   ];
 
+  if (!isAppOpen) {
+    return (
+      <div className="min-h-screen bg-[#050505] text-white font-sans overflow-hidden">
+        <Header apiConnected={apiConnected} variant="landing" />
+        <Hero onTryApp={() => setIsAppOpen(true)} />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-base text-ink font-sans pb-16">
-      <Header apiConnected={apiConnected} />
+      <Header apiConnected={apiConnected} variant="app" onBack={() => setIsAppOpen(false)} />
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6">
-        <Hero />
-
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-4">
         {/* Projector console */}
-        <div className="bg-white rounded-2xl shadow-sm border border-[#E4DCCB] p-6 mb-8 overflow-hidden relative">
+        <div className="bg-[#0a0a0a] rounded-2xl shadow-xl border border-white/10 p-6 mb-8 overflow-hidden relative">
           {/* subtle decorative background */}
-          <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-[#F9F6F0] rounded-full blur-3xl opacity-50 pointer-events-none"></div>
+          <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-white/5 rounded-full blur-3xl opacity-50 pointer-events-none"></div>
           
           <div className="relative z-10">
             {/* Mode switcher */}
@@ -266,8 +274,8 @@ export default function App() {
                   className={cn(
                     'group relative flex items-start gap-3 p-4 rounded-xl cursor-pointer border transition-all duration-200',
                     useTransformers
-                      ? 'bg-[#FEF9F9] border-[#E5484D]/30 shadow-sm'
-                      : 'bg-[#F9F7F3] border-transparent hover:border-[#E4DCCB]'
+                      ? 'bg-[#E5484D]/10 border-[#E5484D]/50 shadow-sm'
+                      : 'bg-[#111111] border-transparent hover:border-white/10'
                   )}
                   htmlFor="toggles-emotion"
                 >
@@ -280,15 +288,15 @@ export default function App() {
                   />
                   <div className={cn(
                     "flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-colors",
-                    useTransformers ? "bg-[#E5484D]/10 text-[#E5484D]" : "bg-white text-[#A49B8B] group-hover:text-[#6E675B] shadow-sm border border-[#E4DCCB]/50"
+                    useTransformers ? "bg-[#E5484D]/10 text-[#E5484D]" : "bg-white/5 text-neutral-400 group-hover:text-neutral-300 shadow-sm border border-white/10"
                   )}>
                     <Brain className="w-4 h-4" aria-hidden="true" />
                   </div>
                   <div className="flex flex-col">
-                    <span className={cn("text-sm font-bold transition-colors tracking-tight", useTransformers ? "text-[#C93B40]" : "text-[#221E1A]")}>
+                    <span className={cn("text-sm font-bold transition-colors tracking-tight", useTransformers ? "text-[#E5484D]" : "text-white")}>
                       Transformer Emotion
                     </span>
-                    <span className="text-xs text-[#A49B8B] mt-0.5">CPU intensive analysis</span>
+                    <span className="text-xs text-neutral-400 mt-0.5">CPU intensive analysis</span>
                   </div>
                   {useTransformers && (
                     <div className="absolute top-3 right-3 w-2 h-2 rounded-full bg-[#E5484D] animate-pulse"></div>
@@ -299,8 +307,8 @@ export default function App() {
                   className={cn(
                     'group relative flex items-start gap-3 p-4 rounded-xl cursor-pointer border transition-all duration-200',
                     useLlm
-                      ? 'bg-[#F7F5FE] border-[#7C5CF0]/30 shadow-sm'
-                      : 'bg-[#F9F7F3] border-transparent hover:border-[#E4DCCB]'
+                      ? 'bg-[#7C5CF0]/10 border-[#7C5CF0]/50 shadow-sm'
+                      : 'bg-[#111111] border-transparent hover:border-white/10'
                   )}
                   htmlFor="toggles-llm"
                 >
@@ -313,12 +321,12 @@ export default function App() {
                   />
                   <div className={cn(
                     "flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-colors",
-                    useLlm ? "bg-[#7C5CF0]/10 text-[#7C5CF0]" : "bg-white text-[#A49B8B] group-hover:text-[#6E675B] shadow-sm border border-[#E4DCCB]/50"
+                    useLlm ? "bg-[#7C5CF0]/10 text-[#7C5CF0]" : "bg-white/5 text-neutral-400 group-hover:text-neutral-300 shadow-sm border border-white/10"
                   )}>
                     <Wand2 className="w-4 h-4" aria-hidden="true" />
                   </div>
                   <div className="flex flex-col">
-                    <span className={cn("text-sm font-bold transition-colors tracking-tight", useLlm ? "text-[#6444D8]" : "text-[#221E1A]")}>
+                    <span className={cn("text-sm font-bold transition-colors tracking-tight", useLlm ? "text-[#7C5CF0]" : "text-white")}>
                       LLM Synopsis
                     </span>
                   </div>
@@ -329,7 +337,7 @@ export default function App() {
               </div>
             </div>
 
-            <div className="h-px w-full bg-gradient-to-r from-transparent via-[#E4DCCB] to-transparent my-6"></div>
+            <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent my-6"></div>
 
             {/* Input Sections */}
 
@@ -337,7 +345,7 @@ export default function App() {
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col sm:flex-row items-end gap-3">
                   <div className="flex-1 w-full space-y-1.5">
-                    <label htmlFor="movie-select" className="text-[10px] font-bold text-[#A49B8B] uppercase tracking-widest ml-1">
+                    <label htmlFor="movie-select" className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest ml-1">
                       Select Screenplay
                     </label>
                     <div className="relative">
@@ -351,7 +359,7 @@ export default function App() {
                             handleGenerate(found);
                           }
                         }}
-                        className="w-full appearance-none bg-[#F9F7F3] border border-[#E4DCCB] text-[#221E1A] text-sm font-medium rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#E5484D]/20 focus:border-[#E5484D] transition-all cursor-pointer shadow-sm hover:bg-white"
+                        className="w-full appearance-none bg-[#111111] border border-white/10 text-white text-sm font-medium rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#E5484D]/20 focus:border-[#E5484D] transition-all cursor-pointer shadow-sm hover:bg-[#1a1a1a]"
                       >
                         <option value="" disabled>
                           {searchQuery.trim()
@@ -369,23 +377,23 @@ export default function App() {
                           </option>
                         ))}
                       </select>
-                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#A49B8B] pointer-events-none" />
+                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 pointer-events-none" />
                     </div>
                   </div>
 
                   <div className="w-full sm:w-72 space-y-1.5">
-                    <label htmlFor="filter-titles" className="text-[10px] font-bold text-[#A49B8B] uppercase tracking-widest ml-1">
+                    <label htmlFor="filter-titles" className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest ml-1">
                       Filter
                     </label>
                     <div className="relative">
-                      <Search className="w-4 h-4 text-[#A49B8B] absolute left-4 top-1/2 -translate-y-1/2" aria-hidden="true" />
+                      <Search className="w-4 h-4 text-neutral-400 absolute left-4 top-1/2 -translate-y-1/2" aria-hidden="true" />
                       <input
                         id="filter-titles"
                         type="text"
                         placeholder="Search titles…"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full bg-[#F9F7F3] border border-[#E4DCCB] text-[#221E1A] text-sm font-medium rounded-xl pl-10 pr-4 py-3 outline-none focus:ring-2 focus:ring-[#E5484D]/20 focus:border-[#E5484D] transition-all shadow-sm hover:bg-white placeholder:text-[#A49B8B] placeholder:font-normal"
+                        className="w-full bg-[#111111] border border-white/10 text-white text-sm font-medium rounded-xl pl-10 pr-4 py-3 outline-none focus:ring-2 focus:ring-[#E5484D]/20 focus:border-[#E5484D] transition-all shadow-sm hover:bg-[#1a1a1a] placeholder:text-neutral-500 placeholder:font-normal"
                       />
                     </div>
                   </div>
@@ -393,7 +401,7 @@ export default function App() {
                   <button 
                     onClick={() => handleGenerate()} 
                     disabled={loading || !selectedMovie} 
-                    className="w-full sm:w-auto bg-[#221E1A] hover:bg-[#15120F] text-white text-sm font-semibold py-3 px-6 rounded-xl transition-all shadow-md hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 h-[46px] shrink-0"
+                    className="w-full sm:w-auto bg-white hover:bg-neutral-200 text-black text-sm font-semibold py-3 px-6 rounded-xl transition-all shadow-md hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 h-[46px] shrink-0"
                   >
                     {loading ? (
                       <>
@@ -413,26 +421,26 @@ export default function App() {
 
             {mode === 'upload' && (
               <div className="flex flex-col space-y-1.5">
-                <label className="text-[10px] font-bold text-[#A49B8B] uppercase tracking-widest ml-1">
+                <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest ml-1">
                   Upload Script
                 </label>
-                <div className="flex flex-col sm:flex-row items-center gap-4 bg-[#F9F7F3] border border-[#E4DCCB] rounded-xl p-2 pl-4 shadow-sm hover:bg-white transition-all">
+                <div className="flex flex-col sm:flex-row items-center gap-4 bg-[#111111] border border-white/10 rounded-xl p-2 pl-4 shadow-sm hover:bg-[#1a1a1a] transition-all">
                   <div className="flex-1 w-full flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center border border-[#E4DCCB] shrink-0">
-                      <FileJson className="w-4 h-4 text-[#A49B8B]" />
+                    <div className="w-8 h-8 rounded-lg bg-white/5 shadow-sm flex items-center justify-center border border-white/10 shrink-0">
+                      <FileJson className="w-4 h-4 text-neutral-400" />
                     </div>
                     <input
                       type="file"
                       accept=".txt"
                       onChange={(e) => setFile(e.target.files[0])}
-                      className="w-full text-sm font-medium text-[#6E675B] file:hidden cursor-pointer"
+                      className="w-full text-sm font-medium text-neutral-300 file:hidden cursor-pointer"
                       aria-label="Upload a .txt screenplay"
                     />
                   </div>
                   <button 
                     onClick={() => handleGenerate()} 
                     disabled={loading || !file} 
-                    className="w-full sm:w-auto bg-[#221E1A] hover:bg-[#15120F] text-white text-sm font-semibold py-2 px-6 rounded-lg transition-all shadow-sm hover:shadow disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 shrink-0 h-10"
+                    className="w-full sm:w-auto bg-white hover:bg-neutral-200 text-black text-sm font-semibold py-2 px-6 rounded-lg transition-all shadow-sm hover:shadow disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 shrink-0 h-10"
                   >
                     {loading ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <Play className="w-3.5 h-3.5 fill-current" aria-hidden="true" />}
                     Analyze Upload
@@ -444,7 +452,7 @@ export default function App() {
             {mode === 'raw' && (
               <div className="flex flex-col gap-4">
                 <div className="space-y-1.5">
-                  <label htmlFor="raw-title" className="text-[10px] font-bold text-[#A49B8B] uppercase tracking-widest ml-1">
+                  <label htmlFor="raw-title" className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest ml-1">
                     Script Title
                   </label>
                   <input
@@ -453,11 +461,11 @@ export default function App() {
                     placeholder="e.g. Inception"
                     value={rawTitle}
                     onChange={(e) => setRawTitle(e.target.value)}
-                    className="w-full bg-[#F9F7F3] border border-[#E4DCCB] text-[#221E1A] text-sm font-medium rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#E5484D]/20 focus:border-[#E5484D] transition-all shadow-sm hover:bg-white placeholder:text-[#A49B8B] placeholder:font-normal"
+                    className="w-full bg-[#111111] border border-white/10 text-white text-sm font-medium rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#E5484D]/20 focus:border-[#E5484D] transition-all shadow-sm hover:bg-[#1a1a1a] placeholder:text-neutral-500 placeholder:font-normal"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label htmlFor="raw-text" className="text-[10px] font-bold text-[#A49B8B] uppercase tracking-widest ml-1">
+                  <label htmlFor="raw-text" className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest ml-1">
                     Screenplay Text
                   </label>
                   <textarea
@@ -466,14 +474,14 @@ export default function App() {
                     placeholder="Paste raw screenplay text here…"
                     value={rawText}
                     onChange={(e) => setRawText(e.target.value)}
-                    className="w-full font-mono bg-[#F9F7F3] border border-[#E4DCCB] text-[#221E1A] text-xs sm:text-sm rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#E5484D]/20 focus:border-[#E5484D] transition-all shadow-sm hover:bg-white placeholder:text-[#A49B8B] resize-y"
+                    className="w-full font-mono bg-[#111111] border border-white/10 text-white text-xs sm:text-sm rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#E5484D]/20 focus:border-[#E5484D] transition-all shadow-sm hover:bg-[#1a1a1a] placeholder:text-neutral-500 resize-y"
                   />
                 </div>
                 <div className="flex justify-end pt-2">
                   <button 
                     onClick={() => handleGenerate()} 
                     disabled={loading || !rawText} 
-                    className="bg-[#221E1A] hover:bg-[#15120F] text-white text-sm font-semibold py-3 px-6 rounded-xl transition-all shadow-md hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 min-w-[140px]"
+                    className="bg-white hover:bg-neutral-200 text-black text-sm font-semibold py-3 px-6 rounded-xl transition-all shadow-md hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 min-w-[140px]"
                   >
                     {loading ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <Play className="w-3.5 h-3.5 fill-current" aria-hidden="true" />}
                     Analyze Text
@@ -488,17 +496,17 @@ export default function App() {
         {!meta && !loading && (
           <div className="mb-12">
             <div className="text-center mb-8">
-              <span className="text-[10px] font-bold text-[#A49B8B] tracking-[0.2em] uppercase">How It Works</span>
-              <h2 className="font-display text-4xl sm:text-5xl tracking-tight text-[#221E1A] mt-2 drop-shadow-sm">
+              <span className="text-[10px] font-bold text-neutral-400 tracking-[0.2em] uppercase">How It Works</span>
+              <h2 className="font-display text-4xl sm:text-5xl tracking-tight text-white mt-2 drop-shadow-sm">
                 From Text to Tagged, in Three Steps
               </h2>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {STEPS.map((step, i) => (
-                <div key={step.n} className="ui-card ui-card-hover rounded-xl p-8 relative overflow-hidden bg-gradient-to-b from-white to-[#F9F7F3]/50">
+                <div key={step.n} className="ui-card ui-card-hover rounded-xl p-8 relative overflow-hidden bg-gradient-to-b from-[#0a0a0a] to-[#111111]">
                   <span
-                    className="font-display text-[80px] leading-none text-[#EDE7DA] absolute -top-4 right-1 select-none"
+                    className="font-display text-[80px] leading-none text-white/5 absolute -top-4 right-1 select-none"
                     aria-hidden="true"
                   >
                     {step.n}
@@ -507,12 +515,12 @@ export default function App() {
                     <span className={`inline-flex h-12 w-12 rounded-xl items-center justify-center shadow-sm ${step.color}`}>
                       <step.icon className="w-5 h-5" aria-hidden="true" />
                     </span>
-                    <h3 className="mt-6 text-lg font-black text-black tracking-wide">{step.title}</h3>
-                    <p className="mt-2.5 text-sm text-[#6E675B] leading-relaxed font-medium">{step.desc}</p>
+                    <h3 className="mt-6 text-lg font-black text-white tracking-wide">{step.title}</h3>
+                    <p className="mt-2.5 text-sm text-neutral-400 leading-relaxed font-medium">{step.desc}</p>
                   </div>
                   {i < STEPS.length - 1 && (
                     <ArrowRight
-                      className="hidden md:block w-4 h-4 text-[#E4DCCB] absolute top-1/2 -right-3 -translate-y-1/2 z-10"
+                      className="hidden md:block w-4 h-4 text-white/10 absolute top-1/2 -right-3 -translate-y-1/2 z-10"
                       aria-hidden="true"
                     />
                   )}
@@ -524,7 +532,7 @@ export default function App() {
 
         {/* Loading status */}
         {loading && (
-          <div className="flex items-center gap-2 text-xs text-[#6E675B] mb-4" role="status" aria-live="polite">
+          <div className="flex items-center gap-2 text-xs text-neutral-400 mb-4" role="status" aria-live="polite">
             <Loader2 className="w-3.5 h-3.5 animate-spin text-[#E5484D]" aria-hidden="true" />
             Running the metadata pipeline — extracting scenes, speakers, topics and tone…
           </div>
@@ -533,7 +541,7 @@ export default function App() {
         {/* Error alert */}
         {error && (
           <div
-            className="flex items-center gap-2 rounded-lg p-3 mb-6 text-xs border bg-[#FBE9E9] border-[#F3C6C7] text-[#C93B40]"
+            className="flex items-center gap-2 rounded-lg p-3 mb-6 text-xs border bg-[#E5484D]/10 border-[#E5484D]/30 text-[#E5484D]"
             role="alert"
           >
             <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
@@ -550,16 +558,16 @@ export default function App() {
             {meta.summary && (
               <div className="ui-card ui-card--top rounded-xl p-6 flex flex-col gap-4">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="p-2 rounded-lg bg-[#FEF3E2]">
-                    <Sparkles className="w-4 h-4 text-[#B97A0B]" aria-hidden="true" />
+                  <span className="p-2 rounded-lg bg-[#F59E0B]/10">
+                    <Sparkles className="w-4 h-4 text-[#F59E0B]" aria-hidden="true" />
                   </span>
-                  <h3 className="text-sm font-bold text-[#221E1A]">AI Synopsis</h3>
+                  <h3 className="text-sm font-bold text-white">AI Synopsis</h3>
                   {meta.summary.model && (
-                    <span className="text-[10px] font-mono text-[#A49B8B]">{meta.summary.model}</span>
+                    <span className="text-[10px] font-mono text-neutral-500">{meta.summary.model}</span>
                   )}
                 </div>
                 {meta.summary.synopsis && (
-                  <p className="text-xs text-[#221E1A] leading-relaxed">{meta.summary.synopsis}</p>
+                  <p className="text-xs text-neutral-200 leading-relaxed">{meta.summary.synopsis}</p>
                 )}
                 <div className="flex flex-col gap-2">
                   {Array.isArray(meta.summary.themes) && meta.summary.themes.length > 0 && (
@@ -586,7 +594,7 @@ export default function App() {
             )}
 
             {/* Tabs */}
-            <div role="tablist" aria-label="Metadata views" className="flex items-center gap-1 border-b border-[#E4DCCB] pb-1 overflow-x-auto">
+            <div role="tablist" aria-label="Metadata views" className="flex items-center gap-1 border-b border-white/10 pb-1 overflow-x-auto">
               {tabs.map(({ id, label, icon: Icon, count }) => (
                 <button
                   key={id}
@@ -597,7 +605,7 @@ export default function App() {
                     'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap cursor-pointer',
                     activeTab === id
                       ? 'bg-[#E5484D] text-white font-semibold'
-                      : 'text-[#6E675B] hover:text-[#221E1A] hover:bg-[#F1EDE4]'
+                      : 'text-neutral-400 hover:text-white hover:bg-white/10'
                   )}
                 >
                   <Icon className="w-3.5 h-3.5" aria-hidden="true" />

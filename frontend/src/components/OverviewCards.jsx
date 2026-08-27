@@ -12,9 +12,9 @@ export default function OverviewCards({ meta }) {
   const emotion = overall.emotion || {};
 
   const sentimentIcon = {
-    positive: <Smile className="w-4 h-4 text-[#178A4C]" aria-hidden="true" />,
-    negative: <Frown className="w-4 h-4 text-[#C93B40]" aria-hidden="true" />,
-    default: <Meh className="w-4 h-4 text-[#8A8174]" aria-hidden="true" />,
+    positive: <Smile className="w-4 h-4 text-emerald-500" aria-hidden="true" />,
+    negative: <Frown className="w-4 h-4 text-red-500" aria-hidden="true" />,
+    default: <Meh className="w-4 h-4 text-neutral-400" aria-hidden="true" />,
   };
 
   const sentimentClass = {
@@ -30,19 +30,19 @@ export default function OverviewCards({ meta }) {
       label: 'Total Scenes',
       value: overall.num_scenes || 0,
       icon: <Film className="w-4 h-4" aria-hidden="true" />,
-      accent: 'bg-[#FBE9E9] text-[#C93B40]',
+      accent: 'bg-red-500/10 text-red-500',
     },
     {
       label: 'Dialogue Lines',
       value: (overall.num_dialogue_lines || 0).toLocaleString(),
       icon: <MessageSquare className="w-4 h-4" aria-hidden="true" />,
-      accent: 'bg-[#FEF3E2] text-[#B97A0B]',
+      accent: 'bg-amber-500/10 text-amber-500',
     },
     {
       label: 'Total Words',
       value: (overall.num_words || 0).toLocaleString(),
       icon: <AlignLeft className="w-4 h-4" aria-hidden="true" />,
-      accent: 'bg-[#E2F3F1] text-[#0B7F74]',
+      accent: 'bg-teal-500/10 text-teal-500',
     },
   ];
 
@@ -59,7 +59,7 @@ export default function OverviewCards({ meta }) {
               Now Screening
             </div>
             <div className="flex flex-wrap items-center gap-3">
-              <h2 className="font-display text-3xl tracking-wide text-[#221E1A] leading-none">
+              <h2 className="font-display text-3xl tracking-wide text-white leading-none">
                 {meta.title || 'Untitled Screenplay'}
               </h2>
               {meta.imdb_id && (
@@ -68,7 +68,7 @@ export default function OverviewCards({ meta }) {
                 </span>
               )}
             </div>
-            <p className="text-xs text-[#6E675B] mt-2">
+            <p className="text-xs text-neutral-400 mt-2">
               Metadata extraction from screenplay transcript · {overall.num_scenes || 0} scenes ·{' '}
               {overall.num_dialogue_lines || 0} lines
             </p>
@@ -85,13 +85,13 @@ export default function OverviewCards({ meta }) {
                 </span>
               ))
             ) : (
-              <span className="text-xs text-[#A49B8B] italic">No genres classified</span>
+              <span className="text-xs text-neutral-500 italic">No genres classified</span>
             )}
           </div>
         </div>
 
         {knownGenres.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5 mt-3 pt-3 border-t border-[#E4DCCB]">
+          <div className="flex flex-wrap items-center gap-1.5 mt-3 pt-3 border-t border-white/10">
             <span className="eyebrow">Ground truth</span>
             {knownGenres.map((g, i) => (
               <span key={i} className="chip chip-neutral">
@@ -107,13 +107,13 @@ export default function OverviewCards({ meta }) {
         {stats.map((s) => (
           <div key={s.label} className="ui-card ui-card-hover rounded-xl p-5">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#6E675B]">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">
                 {s.label}
               </span>
               <span className={cn('p-2 rounded-lg', s.accent)}>{s.icon}</span>
             </div>
             <div className="mt-2">
-              <span className="display text-4xl text-[#221E1A] tnum leading-none">{s.value}</span>
+              <span className="display text-4xl text-white tnum leading-none">{s.value}</span>
             </div>
           </div>
         ))}
@@ -121,10 +121,10 @@ export default function OverviewCards({ meta }) {
         {/* Overall tone card */}
         <div className="ui-card ui-card-hover rounded-xl p-5">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[#6E675B]">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">
               Overall Tone
             </span>
-            <span className="p-2 rounded-lg bg-[#EFECFD]">{sentimentIcon[toneKey]}</span>
+            <span className="p-2 rounded-lg bg-purple-500/10">{sentimentIcon[toneKey]}</span>
           </div>
           <div className="mt-2 flex items-center justify-between gap-2">
             <span className={cn('chip', sentimentClass[toneKey])}>
