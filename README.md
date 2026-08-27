@@ -14,7 +14,7 @@
 - **Sentiment & Emotion Analysis**: Performs VADER sentiment scoring per line/scene alongside an optional Hugging Face Transformer emotion classification model (RoBERTa).
 - **Multi-Label Genre Classification**: Scikit-Learn OneVsRest TF-IDF + Logistic Regression model pre-trained on movie screenplays to predict top movie genres (Drama, Action, Sci-Fi, Comedy, etc.).
 - **Gzip Compressed Storage**: Compresses heavy script JSON metadata output down to `.json.gz` files, reducing storage footprint by ~90% (~900MB reduced to ~100MB).
-- **Modern React 19 Dashboard**: Includes a sleek dark-mode React 19 dashboard built with Vite, Tailwind CSS, and Recharts.
+- **Modern React 19 Dashboard**: Includes a sleek dark-mode React 19 dashboard built with Vite, Tailwind CSS, and Rechart.
 
 ---
 
