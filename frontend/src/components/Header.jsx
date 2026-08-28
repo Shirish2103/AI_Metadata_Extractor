@@ -19,17 +19,17 @@ export default function Header({ apiConnected, variant = 'landing', onBack }) {
               </button>
             )}
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-[#E5484D] via-[#F59E0B] to-[#0E9488] flex items-center justify-center text-white shadow-[0_6px_18px_-6px_rgba(229,72,77,0.6)]">
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-[#ffffff] via-[#a3a3a3] to-[#404040] flex items-center justify-center text-white shadow-[0_6px_18px_-6px_rgba(229,72,77,0.6)]">
                 <Clapperboard className="w-5 h-5" aria-hidden="true" />
               </div>
               <div className="leading-tight">
                 <div className="flex items-center gap-2">
                   <span className="font-display text-2xl tracking-wide text-white">ScriptTagger</span>
-                  <span className="px-2 py-0.5 text-[10px] font-semibold rounded bg-red-500/10 text-red-500 border border-red-500/20 uppercase tracking-wider">
+                  <span className="px-2 py-0.5 text-[10px] font-semibold rounded bg-white/5 text-white border border-white/10 uppercase tracking-wider">
                     Screenplay Analyzer
                   </span>
                 </div>
-                <div className="perf-strip w-full max-w-[180px] mt-1" aria-hidden="true" />
+
               </div>
             </div>
           </div>
@@ -37,7 +37,7 @@ export default function Header({ apiConnected, variant = 'landing', onBack }) {
           {/* Status */}
           <div className="flex items-center gap-3 w-full md:w-auto">
             <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs" role="status" aria-live="polite">
-              <span className={cn('h-2 w-2 rounded-full', apiConnected ? 'bg-[#1FA45C]' : 'bg-[#E5484D]')} aria-hidden="true" />
+              <span className={cn('h-2 w-2 rounded-full', apiConnected ? 'bg-[#ffffff]' : 'bg-[#ffffff]')} aria-hidden="true" />
               <span className="text-neutral-400 font-medium">{apiConnected ? 'System Online' : 'Connecting…'}</span>
             </div>
           </div>

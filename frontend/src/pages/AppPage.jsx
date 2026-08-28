@@ -1,13 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
-import Hero from '../components/Hero';
-import OverviewCards from '../components/OverviewCards';
-import SceneExplorer from '../components/SceneExplorer';
-import AnalyticsCharts from '../components/AnalyticsCharts';
-import SpeakersGrid from '../components/SpeakersGrid';
-import TopicsEntities from '../components/TopicsEntities';
-import JsonViewer from '../components/JsonViewer';
 
 import {
   Film,
@@ -79,11 +72,8 @@ export default function AppPage({ apiConnected }) {
   const [useTransformers, setUseTransformers] = useState(false);
   const [useLlm, setUseLlm] = useState(false);
 
-  const [meta, setMeta] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [copied, setCopied] = useState(false);
-  const [activeTab, setActiveTab] = useState('scenes');
   const navigate = useNavigate();
 
 
@@ -181,9 +171,19 @@ export default function AppPage({ apiConnected }) {
 
       if (res && res.ok) {
         const resultMeta = await res.json();
-        setMeta(resultMeta);
-        setActiveTab('scenes');
         fetchScripts();
+        fetchOutputs();
+        // Navigate to cinematic dashboard — IMDB ID preferred
+        let id = resultMeta.imdb_id || movie?.imdb_id || resultMeta.title || rawTitle || 'unknown';
+        id = String(id).trim();
+        // clean title-like ids to match pipeline's _clean_filename (spaces → underscores)
+        if (!/^\d+$/.test(id.replace(/^tt/i, ''))) {
+          const cleaned = id.replace(/[^\w\-_ ]/g, '').trim().replace(/\s+/g, '_').slice(0, 50);
+          if (cleaned) id = cleaned;
+        } else if (/^tt\d+$/i.test(id)) {
+          id = id.replace(/^tt/i, '').padStart(7, '0');
+        }
+        navigate(`/dashboard/${encodeURIComponent(id)}`);
       } else {
         const errData = await res?.json().catch(() => ({}));
         setError(errData.detail || 'Failed to tag screenplay metadata.');
@@ -194,27 +194,6 @@ export default function AppPage({ apiConnected }) {
       setLoading(false);
     }
   };
-
-  const copyJson = () => {
-    if (!meta) return;
-    navigator.clipboard.writeText(JSON.stringify(meta, null, 2)).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    });
-  };
-
-  const tabs = [
-    { id: 'scenes', label: 'Scenes', icon: Film, count: meta?.segments?.length ?? 0 },
-    {
-      id: 'speakers',
-      label: 'Characters',
-      icon: Users,
-      count: meta?.speakers ? (Array.isArray(meta.speakers) ? meta.speakers.length : Object.keys(meta.speakers).length) : 0,
-    },
-    { id: 'analytics', label: 'Analytics & Tone', icon: TrendingUp },
-    { id: 'topics', label: 'Topics', icon: Tag },
-    { id: 'json', label: 'JSON', icon: FileJson },
-  ];
 
 
 
@@ -256,7 +235,7 @@ export default function AppPage({ apiConnected }) {
                     'group relative flex items-start gap-3 p-4 rounded-xl cursor-pointer border transition-all duration-200',
                     useTransformers
                       ? 'bg-white/5 border-white/20 shadow-sm'
-                      : 'bg-[#111111] border-transparent hover:border-white/10'
+                      : 'bg-[#111111] border-transparent hover:border-white/10 hover:bg-white/[0.02]'
                   )}
                   htmlFor="toggles-emotion"
                 >
@@ -269,7 +248,7 @@ export default function AppPage({ apiConnected }) {
                   />
                   <div className={cn(
                     "flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-colors",
-                    useTransformers ? "bg-white/10 text-white" : "bg-white/5 text-neutral-400 group-hover:text-neutral-300 shadow-sm border border-white/10"
+                    useTransformers ? "bg-white text-black shadow-lg" : "bg-white/5 text-neutral-400 group-hover:text-neutral-300 shadow-sm border border-white/10"
                   )}>
                     <Brain className="w-4 h-4" aria-hidden="true" />
                   </div>
@@ -286,7 +265,7 @@ export default function AppPage({ apiConnected }) {
                     'group relative flex items-start gap-3 p-4 rounded-xl cursor-pointer border transition-all duration-200',
                     useLlm
                       ? 'bg-white/5 border-white/20 shadow-sm'
-                      : 'bg-[#111111] border-transparent hover:border-white/10'
+                      : 'bg-[#111111] border-transparent hover:border-white/10 hover:bg-white/[0.02]'
                   )}
                   htmlFor="toggles-llm"
                 >
@@ -299,7 +278,7 @@ export default function AppPage({ apiConnected }) {
                   />
                   <div className={cn(
                     "flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-colors",
-                    useLlm ? "bg-white/10 text-white" : "bg-white/5 text-neutral-400 group-hover:text-neutral-300 shadow-sm border border-white/10"
+                    useLlm ? "bg-white text-black shadow-lg" : "bg-white/5 text-neutral-400 group-hover:text-neutral-300 shadow-sm border border-white/10"
                   )}>
                     <FileText className="w-4 h-4" aria-hidden="true" />
                   </div>
@@ -329,10 +308,7 @@ export default function AppPage({ apiConnected }) {
                         value={selectedMovie?.imdb_id || ''}
                         onChange={(e) => {
                           const found = filteredScripts.find((m) => m.imdb_id === e.target.value);
-                          if (found) {
-                            setSelectedMovie(found);
-                            handleGenerate(found);
-                          }
+                          if (found) setSelectedMovie(found);
                         }}
                         className="w-full appearance-none bg-[#111111] border border-white/10 text-white text-sm font-medium rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-white/20 focus:border-white/30 transition-all cursor-pointer shadow-sm hover:bg-[#1a1a1a]"
                       >
@@ -376,7 +352,7 @@ export default function AppPage({ apiConnected }) {
                   <button 
                     onClick={() => handleGenerate()} 
                     disabled={loading || !selectedMovie} 
-                    className="w-full sm:w-auto bg-white hover:bg-neutral-200 text-black text-sm font-semibold py-3 px-6 rounded-xl transition-all shadow-md hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 h-[46px] shrink-0"
+                    className="w-full sm:w-auto bg-white hover:bg-neutral-200 text-black text-sm font-semibold py-3 px-6 rounded-xl transition-all shadow-md disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 h-[46px] shrink-0"
                   >
                     {loading ? (
                       <>
@@ -415,7 +391,7 @@ export default function AppPage({ apiConnected }) {
                   <button 
                     onClick={() => handleGenerate()} 
                     disabled={loading || !file} 
-                    className="w-full sm:w-auto bg-white hover:bg-neutral-200 text-black text-sm font-semibold py-2 px-6 rounded-lg transition-all shadow-sm hover:shadow disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 shrink-0 h-10"
+                    className="w-full sm:w-auto bg-white hover:bg-neutral-200 text-black text-sm font-semibold py-2 px-6 rounded-lg transition-all shadow-md disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 shrink-0 h-10"
                   >
                     {loading ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <Play className="w-3.5 h-3.5 fill-current" aria-hidden="true" />}
                     Analyze Upload
@@ -456,7 +432,7 @@ export default function AppPage({ apiConnected }) {
                   <button 
                     onClick={() => handleGenerate()} 
                     disabled={loading || !rawText} 
-                    className="bg-white hover:bg-neutral-200 text-black text-sm font-semibold py-3 px-6 rounded-xl transition-all shadow-md hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 min-w-[140px]"
+                    className="bg-white hover:bg-neutral-200 text-black text-sm font-semibold py-3 px-6 rounded-xl transition-all shadow-md disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 min-w-[140px]"
                   >
                     {loading ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <Play className="w-3.5 h-3.5 fill-current" aria-hidden="true" />}
                     Analyze Text
@@ -467,21 +443,22 @@ export default function AppPage({ apiConnected }) {
           </div>
         </div>
 
-        {/* How it works (shown when no meta is generated and not loading) */}
-        {!meta && !loading && (
-          <div className="mb-12">
+        {/* How it works — always visible on input page when not loading */}
+        {!loading && (
+          <div className="mb-10">
             <div className="text-center mb-8">
               <span className="text-[10px] font-bold text-neutral-400 tracking-[0.2em] uppercase">How It Works</span>
               <h2 className="font-display text-4xl sm:text-5xl tracking-tight text-white mt-2 drop-shadow-sm">
                 From Text to Tagged, in Three Steps
               </h2>
+              <p className="text-sm text-neutral-500 mt-3">Select a script → Analyze → View cinematic dashboard</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {STEPS.map((step, i) => (
-                <div key={step.n} className="rounded-2xl p-8 relative overflow-hidden bg-[#0a0a0a] border border-white/5 transition-colors hover:bg-[#0c0c0c] hover:border-white/10 group">
+              {STEPS.map((step) => (
+                <div key={step.n} className="rounded-2xl p-8 relative overflow-hidden bg-[#0a0a0a] border border-white/5 transition-all hover:bg-white/[0.03] hover:border-white/10 group">
                   <div className="relative z-10">
-                    <span className={`inline-flex h-12 w-12 rounded-xl items-center justify-center border border-white/10 ${step.color}`}>
+                    <span className={cn(`inline-flex h-12 w-12 rounded-xl items-center justify-center border border-white/10 transition-colors group-hover:border-white/30 group-hover:bg-white/10 group-hover:text-white`, step.color)}>
                       <step.icon className="w-5 h-5" aria-hidden="true" />
                     </span>
                     <h3 className="mt-6 text-lg font-medium text-white tracking-tight">{step.title}</h3>
@@ -495,16 +472,16 @@ export default function AppPage({ apiConnected }) {
 
         {/* Loading status */}
         {loading && (
-          <div className="flex items-center gap-2 text-xs text-neutral-400 mb-4" role="status" aria-live="polite">
+          <div className="flex items-center gap-2 text-xs text-neutral-400 mb-6" role="status" aria-live="polite">
             <Loader2 className="w-3.5 h-3.5 animate-spin text-white/70" aria-hidden="true" />
-            Running the metadata pipeline — extracting scenes, speakers, topics and tone…
+            Running the metadata pipeline — extracting scenes, speakers, topics and tone… You&apos;ll be redirected to the dashboard when complete.
           </div>
         )}
 
         {/* Error alert */}
         {error && (
           <div
-            className="flex items-center gap-2 rounded-xl p-4 mb-6 text-sm border bg-red-500/10 border-red-500/20 text-red-400"
+            className="flex items-center gap-2 rounded-xl p-4 mb-6 text-sm border bg-white/5 border-white/10 text-neutral-300"
             role="alert"
           >
             <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
@@ -512,83 +489,29 @@ export default function AppPage({ apiConnected }) {
           </div>
         )}
 
-        {/* Results */}
-        {meta && (
-          <div className="flex flex-col gap-5 animate-fade-in">
-            <OverviewCards meta={meta} />
-
-            {/* AI Synopsis */}
-            {meta.summary && (
-              <div className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-6 flex flex-col gap-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="p-2 rounded-lg bg-white/5 border border-white/10">
-                    <FileText className="w-4 h-4 text-neutral-400" aria-hidden="true" />
-                  </span>
-                  <h3 className="text-sm font-medium text-white">Synopsis</h3>
-                  {meta.summary.model && (
-                    <span className="text-[10px] text-neutral-500 px-2 py-0.5 rounded-full bg-white/5 border border-white/5">{meta.summary.model}</span>
-                  )}
-                </div>
-                {meta.summary.synopsis && (
-                  <p className="text-sm text-neutral-300 leading-relaxed">{meta.summary.synopsis}</p>
-                )}
-                <div className="flex flex-col gap-2 mt-2">
-                  {Array.isArray(meta.summary.themes) && meta.summary.themes.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {meta.summary.themes.map((t, i) => (
-                        <span key={i} className="px-2.5 py-1 rounded-md bg-white/5 border border-white/10 text-neutral-300 text-xs">
-                          {t}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  {Array.isArray(meta.summary.compliance_flags) && meta.summary.compliance_flags.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-1">
-                      {meta.summary.compliance_flags.map((c, i) => (
-                        <span key={i} className="px-2.5 py-1 rounded-md bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center gap-1.5">
-                          <ShieldAlert className="w-3 h-3" aria-hidden="true" />
-                          {c.toLowerCase() === 'none' ? 'Compliance Flag' : c}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Tabs */}
-            <div role="tablist" aria-label="Metadata views" className="flex items-center gap-2 border-b border-white/5 pb-2 overflow-x-auto">
-              {tabs.map(({ id, label, icon: Icon, count }) => (
-                <button
-                  key={id}
-                  role="tab"
-                  aria-selected={activeTab === id}
-                  onClick={() => setActiveTab(id)}
-                  className={cn(
-                    'flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap cursor-pointer border',
-                    activeTab === id
-                      ? 'bg-white text-black border-transparent shadow-sm'
-                      : 'bg-transparent text-neutral-400 border-transparent hover:bg-white/5 hover:text-white'
-                  )}
-                >
-                  <Icon className="w-4 h-4" aria-hidden="true" />
-                  {label}
-                  {typeof count === 'number' && count > 0 && (
-                    <span className="text-[11px] opacity-70 font-mono">({count})</span>
-                  )}
-                </button>
-              ))}
-            </div>
-
-            {/* Active view */}
-            <div>
-              {activeTab === 'scenes' && <SceneExplorer key={meta.imdb_id || meta.title || 0} segments={meta.segments} />}
-              {activeTab === 'speakers' && <SpeakersGrid speakers={meta.speakers} />}
-              {activeTab === 'analytics' && <AnalyticsCharts overall={meta.overall} />}
-              {activeTab === 'topics' && (
-                <TopicsEntities topics={meta.overall?.topics} entities={meta.overall?.entities} />
-              )}
-              {activeTab === 'json' && <JsonViewer meta={meta} onCopy={copyJson} copied={copied} />}
+        {/* Recent analyses — quick jump to dashboard */}
+        {outputsList.length > 0 && !loading && (
+          <div className="ui-card rounded-2xl p-6">
+            <h3 className="text-sm font-bold text-white flex items-center gap-2 mb-4">
+              <BarChart3 className="w-4 h-4 text-[#ffffff]" /> Recent Analyses · {outputsList.length}
+              <span className="text-xs font-normal text-neutral-500 ml-auto">Click to open dashboard</span>
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-64 overflow-y-auto">
+              {outputsList.slice(0, 12).map((o) => {
+                const id = o.imdb_id || o.id || o.filename?.replace('.json.gz','') || o.filename;
+                return (
+                  <button
+                    key={o.filename}
+                    onClick={() => navigate(`/dashboard/${encodeURIComponent(id)}`)}
+                    className="text-left px-3 py-2.5 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/5 hover:border-white/10 transition-colors flex items-center justify-between gap-2"
+                  >
+                    <span className="text-xs font-medium text-white truncate">{o.title || o.filename}</span>
+                    <span className="text-[11px] font-mono text-neutral-500 shrink-0 flex items-center gap-1">
+                      {id} <ArrowRight className="w-3 h-3" />
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}

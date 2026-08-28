@@ -1,7 +1,6 @@
 """Generative AI metadata enrichment.
 
-Supports OpenAI, Groq, Google Gemini, OpenRouter, and local gateways (Ollama/LMStudio)
-via OpenAI-compatible chat completions endpoints.
+Supports Google Gemini via the OpenAI-compatible chat completions endpoint.
 """
 
 import html
@@ -12,7 +11,6 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_BASE_URL = "https://api.openai.com/v1"
 MAX_CHARS = 12_000
 
 _SYSTEM_PROMPT = (
@@ -43,39 +41,13 @@ def _load_env_if_needed():
 
 
 def resolve_config():
-    """Auto-detect available provider config (Groq, Gemini, OpenRouter, OpenAI, Ollama)."""
+    """Auto-detect available provider config for Google Gemini."""
     _load_env_if_needed()
 
-    # 1. Custom Gateway (e.g. Ollama or self-hosted)
-    if os.environ.get("OPENAI_BASE_URL"):
-        url = os.environ["OPENAI_BASE_URL"].rstrip("/")
-        key = os.environ.get("OPENAI_API_KEY") or os.environ.get("GROQ_API_KEY") or os.environ.get("GEMINI_API_KEY") or "ollama"
-        model = os.environ.get("OPENAI_MODEL", "llama3")
-        return url, key, model, f"Custom ({model})"
-
-    # 2. Groq Cloud (Free Tier)
-    groq_key = os.environ.get("GROQ_API_KEY") or (os.environ.get("OPENAI_API_KEY", "").startswith("gsk_") and os.environ.get("OPENAI_API_KEY"))
-    if groq_key:
-        model = os.environ.get("OPENAI_MODEL", "openai/gpt-oss-20b")
-        return "https://api.groq.com/openai/v1", groq_key, model, f"Groq ({model})"
-
-    # 3. Google Gemini (Free Tier via OpenAI endpoint)
     gemini_key = os.environ.get("GEMINI_API_KEY")
     if gemini_key:
-        model = os.environ.get("OPENAI_MODEL", "gemini-2.0-flash")
+        model = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
         return "https://generativelanguage.googleapis.com/v1beta/openai/", gemini_key, model, f"Google Gemini ({model})"
-
-    # 4. OpenRouter (Free Tier)
-    openrouter_key = os.environ.get("OPENROUTER_API_KEY")
-    if openrouter_key:
-        model = os.environ.get("OPENAI_MODEL", "google/gemini-2.0-flash-lite-001:free")
-        return "https://openrouter.ai/api/v1", openrouter_key, model, f"OpenRouter ({model})"
-
-    # 5. OpenAI
-    openai_key = os.environ.get("OPENAI_API_KEY") or os.environ.get("OPEN_API_KEY")
-    if openai_key:
-        model = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
-        return "https://api.openai.com/v1", openai_key, model, f"OpenAI ({model})"
 
     return None, None, None, None
 
@@ -97,7 +69,7 @@ def _call_llm(user_content: str) -> dict | None:
     base_url, api_key, model, provider_label = resolve_config()
 
     if not base_url or not api_key:
-        _last_error_reason = "No API Key configured (Add GROQ_API_KEY or GEMINI_API_KEY in .env)"
+        _last_error_reason = "No API Key configured (Add GEMINI_API_KEY in .env)"
         return None
 
     _last_used_model = provider_label
@@ -111,57 +83,42 @@ def _call_llm(user_content: str) -> dict | None:
         "temperature": 0.7,
     }
 
-    if "openrouter" not in base_url:
-        payload["response_format"] = {"type": "json_object"}
+    payload["response_format"] = {"type": "json_object"}
 
     headers = {"Authorization": f"Bearer {api_key}"}
-    if "openrouter" in base_url:
-        headers["X-Title"] = "ScriptTagger"
 
-    candidate_models = [model]
-    if "groq.com" in base_url and model not in ["openai/gpt-oss-20b", "qwen/qwen3.6-27b", "groq/compound"]:
-        candidate_models.extend(["openai/gpt-oss-20b", "qwen/qwen3.6-27b", "groq/compound"])
+    try:
+        resp = requests.post(f"{base_url}/chat/completions", headers=headers, json=payload, timeout=90)
+        if resp.status_code == 429:
+            err_data = resp.json().get("error", {}) if resp.text.startswith("{") else {}
+            if err_data.get("code") == "insufficient_quota":
+                _last_error_reason = f"{provider_label}: Quota Exceeded / Check Billing"
+            else:
+                _last_error_reason = f"{provider_label}: Rate Limit Exceeded (429)"
+            logger.warning("LLM enrichment failed: %s", _last_error_reason)
+            return None
+        elif resp.status_code == 401:
+            _last_error_reason = f"{provider_label}: Invalid API Key (401)"
+            logger.warning("LLM enrichment failed: 401 Unauthorized")
+            return None
+        resp.raise_for_status()
+        content = resp.json()["choices"][0]["message"]["content"]
+        _last_used_model = provider_label
 
-    for current_model in candidate_models:
-        payload["model"] = current_model
-        try:
-            resp = requests.post(f"{base_url}/chat/completions", headers=headers, json=payload, timeout=90)
-            if resp.status_code == 404 and len(candidate_models) > 1:
-                continue
-            if resp.status_code == 429:
-                err_data = resp.json().get("error", {}) if resp.text.startswith("{") else {}
-                if err_data.get("code") == "insufficient_quota":
-                    _last_error_reason = f"{provider_label}: Quota Exceeded / Check Billing"
-                else:
-                    _last_error_reason = f"{provider_label}: Rate Limit Exceeded (429)"
-                logger.warning("LLM enrichment failed: %s", _last_error_reason)
-                return None
-            elif resp.status_code == 401:
-                _last_error_reason = f"{provider_label}: Invalid API Key (401)"
-                logger.warning("LLM enrichment failed: 401 Unauthorized")
-                return None
-            resp.raise_for_status()
-            content = resp.json()["choices"][0]["message"]["content"]
-            _last_used_model = f"Groq ({current_model})" if "groq.com" in base_url else provider_label
+        cleaned_content = content.strip()
+        if cleaned_content.startswith("```"):
+            lines = cleaned_content.splitlines()
+            if lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].startswith("```"):
+                lines = lines[:-1]
+            cleaned_content = "\n".join(lines).strip()
 
-            cleaned_content = content.strip()
-            if cleaned_content.startswith("```"):
-                lines = cleaned_content.splitlines()
-                if lines[0].startswith("```"):
-                    lines = lines[1:]
-                if lines and lines[-1].startswith("```"):
-                    lines = lines[:-1]
-                cleaned_content = "\n".join(lines).strip()
-
-            return json.loads(cleaned_content)
-        except Exception as exc:
-            if current_model == candidate_models[-1]:
-                _last_error_reason = f"{provider_label} Error: {exc}"
-                logger.warning("LLM enrichment failed: %s", exc)
-                return None
-            continue
-
-    return None
+        return json.loads(cleaned_content)
+    except Exception as exc:
+        _last_error_reason = f"{provider_label} Error: {exc}"
+        logger.warning("LLM enrichment failed: %s", exc)
+        return None
 
 
 def _fallback_summary(text: str, title: str = "", reason: str = "") -> dict:

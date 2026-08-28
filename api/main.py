@@ -310,4 +310,20 @@ def metadata(imdb_id: str):
     return meta
 
 if DIST_DIR.exists():
+    # SPA fallback for dashboard/app routes — must be defined before static mount so they take precedence
+    @app.get("/dashboard/{path:path}")
+    @app.get("/app/{path:path}")
+    def spa_dashboard(path: str):
+        index_file = DIST_DIR / "index.html"
+        if index_file.exists():
+            return FileResponse(index_file)
+        raise HTTPException(404)
+
+    @app.get("/app")
+    def spa_app():
+        index_file = DIST_DIR / "index.html"
+        if index_file.exists():
+            return FileResponse(index_file)
+        raise HTTPException(404)
+
     app.mount("/", StaticFiles(directory=str(DIST_DIR), html=True), name="static")
