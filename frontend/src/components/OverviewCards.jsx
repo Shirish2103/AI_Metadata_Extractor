@@ -1,3 +1,4 @@
+// Metadata overview cards
 import React from 'react';
 import { Film, MessageSquare, AlignLeft, Smile, Frown, Meh, Tag, Sparkles } from 'lucide-react';
 import { cn } from '../lib/utils';
