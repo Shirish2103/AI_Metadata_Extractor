@@ -8,8 +8,8 @@ MODELS_DIR = DATA_DIR / "models"
 INDEX_CSV = DATA_DIR / "corpus_index.csv"
 
 POSSIBLE_ROOTS = [
-    Path("/home/shaury/Desktop/machine learning/dataset/archive (3)"),
     Path("D:/Downloads/archive"),
+    Path("/home/shaury/Desktop/machine learning/dataset/archive (3)"),
     Path("C:/Downloads/archive"),
 ]
 
