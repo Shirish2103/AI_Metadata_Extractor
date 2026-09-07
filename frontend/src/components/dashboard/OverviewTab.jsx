@@ -112,7 +112,12 @@ export default function OverviewTab({ meta }) {
             </div>
           </div>
           
-          <p className="max-w-3xl text-lg sm:text-xl text-neutral-200 leading-relaxed drop-shadow-md mb-8">
+          {meta.summary?.logline && (
+            <p className="max-w-3xl text-sm sm:text-base text-neutral-300 italic mb-3 drop-shadow-md">
+              &ldquo;{meta.summary.logline}&rdquo;
+            </p>
+          )}
+          <p className="max-w-3xl text-base sm:text-lg text-neutral-200 leading-relaxed drop-shadow-md mb-8">
             {meta.summary?.synopsis || 'No synopsis available. Enable LLM Synopsis during analysis to generate an AI synopsis and compliance flags.'}
           </p>
           

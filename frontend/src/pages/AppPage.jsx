@@ -69,8 +69,6 @@ export default function AppPage({ apiConnected }) {
   const [rawTitle, setRawTitle] = useState('Custom Script');
   const [file, setFile] = useState(null);
 
-  const [useTransformers, setUseTransformers] = useState(false);
-  const [useLlm, setUseLlm] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -143,16 +141,16 @@ export default function AppPage({ apiConnected }) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             imdb_id: movie.imdb_id,
-            use_transformers: useTransformers,
+            use_transformers: true,
             include_dialogue: true,
-            use_llm: useLlm,
+            use_llm: true,
           }),
         });
       } else if (mode === 'upload' && file) {
         const formData = new FormData();
         formData.append('file', file);
         res = await fetch(
-          `/api/tag/upload?use_transformers=${useTransformers}&include_dialogue=true&use_llm=${useLlm}`,
+          `/api/tag/upload?use_transformers=true&include_dialogue=true&use_llm=true`,
           { method: 'POST', body: formData }
         );
       } else if (mode === 'raw' && rawText) {
@@ -162,9 +160,9 @@ export default function AppPage({ apiConnected }) {
           body: JSON.stringify({
             text: rawText,
             title: rawTitle || 'Custom Script',
-            use_transformers: useTransformers,
+            use_transformers: true,
             include_dialogue: true,
-            use_llm: useLlm,
+            use_llm: true,
           }),
         });
       }
@@ -226,72 +224,7 @@ export default function AppPage({ apiConnected }) {
               </nav>
             </div>
 
-            {/* Options Row */}
-            <div className="flex flex-col sm:flex-row gap-4 mb-6">
-              {/* Toggles */}
-              <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <label
-                  className={cn(
-                    'group relative flex items-start gap-3 p-4 rounded-xl cursor-pointer border transition-all duration-200',
-                    useTransformers
-                      ? 'bg-white/5 border-white/20 shadow-sm'
-                      : 'bg-[#111111] border-transparent hover:border-white/10 hover:bg-white/[0.02]'
-                  )}
-                  htmlFor="toggles-emotion"
-                >
-                  <input
-                    id="toggles-emotion"
-                    type="checkbox"
-                    checked={useTransformers}
-                    onChange={(e) => setUseTransformers(e.target.checked)}
-                    className="hidden"
-                  />
-                  <div className={cn(
-                    "flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-colors",
-                    useTransformers ? "bg-white text-black shadow-lg" : "bg-white/5 text-neutral-400 group-hover:text-neutral-300 shadow-sm border border-white/10"
-                  )}>
-                    <Brain className="w-4 h-4" aria-hidden="true" />
-                  </div>
-                  <div className="flex flex-col">
-                    <span className={cn("text-sm font-medium transition-colors tracking-tight text-white")}>
-                      Transformer Emotion
-                    </span>
-                    <span className="text-xs text-neutral-400 mt-0.5">CPU intensive analysis</span>
-                  </div>
-                </label>
 
-                <label
-                  className={cn(
-                    'group relative flex items-start gap-3 p-4 rounded-xl cursor-pointer border transition-all duration-200',
-                    useLlm
-                      ? 'bg-white/5 border-white/20 shadow-sm'
-                      : 'bg-[#111111] border-transparent hover:border-white/10 hover:bg-white/[0.02]'
-                  )}
-                  htmlFor="toggles-llm"
-                >
-                  <input
-                    id="toggles-llm"
-                    type="checkbox"
-                    checked={useLlm}
-                    onChange={(e) => setUseLlm(e.target.checked)}
-                    className="hidden"
-                  />
-                  <div className={cn(
-                    "flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-colors",
-                    useLlm ? "bg-white text-black shadow-lg" : "bg-white/5 text-neutral-400 group-hover:text-neutral-300 shadow-sm border border-white/10"
-                  )}>
-                    <FileText className="w-4 h-4" aria-hidden="true" />
-                  </div>
-                  <div className="flex flex-col justify-center">
-                    <span className={cn("text-sm font-medium transition-colors tracking-tight text-white")}>
-                      LLM Synopsis
-                    </span>
-                  </div>
-                </label>
-              </div>
-            </div>
-
-            <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent my-6"></div>
 
             {/* Input Sections */}
 

@@ -3,6 +3,7 @@
 import gzip
 import json
 import logging
+import re
 from pathlib import Path
 
 from src import classify, ner, parser, segmentation, sentiment, speakers, srt, topics
@@ -66,9 +67,26 @@ def tag_script(
     global_entities = ner.person_matches_speakers(ner_res["global_entities"], parsed)
     scene_entities = ner_res["scene_entities"]
 
+    # Generate LLM summary first to help with global topics if available
+    summary = None
+    if use_llm:
+        from src import summarize
+        lines = []
+        for s in parsed.scenes:
+            if s.heading:
+                lines.append(f"[{s.heading}]")
+            for a in s.action[:2]:
+                if a and a.strip():
+                    lines.append(a.strip())
+            for d in s.dialogue:
+                if d.text:
+                    lines.append(f"{d.speaker}: {d.text}" if d.speaker else d.text)
+        top_speakers = [s for s in parsed.speakers if s][:6]
+        summary = summarize.generate("\n".join(lines), title=parsed.title or title, characters=top_speakers)
+
     # Topics
     scene_topic_lists = topics.scene_topics(parsed, scene_texts, top_n=8)
-    overall_topics = topics.overall_topics(parsed, top_n=25)
+    overall_topics = topics.overall_topics(parsed, top_n=25, summary=summary)
 
     # Sentiment (VADER) + optional transformer emotion per dialogue line
     dialogue_texts = [d.text for d in parsed.all_dialogue]
@@ -77,6 +95,10 @@ def tag_script(
         line_emotions = sentiment.transformer_emotion(dialogue_texts)
     else:
         line_emotions = [None] * len(dialogue_texts)
+
+    # Speaker stats and canonical mapping
+    speaker_stats = speakers.speaker_stats(parsed)
+    canonical_map = speakers.build_canonical_speaker_mapping(parsed)
 
     # Build per-scene aggregates
     seg_meta = []
@@ -88,14 +110,24 @@ def tag_script(
         speakers_in_scene = []
         for d in scene.dialogue:
             n = parser.normalize_speaker(d.speaker)
-            if n and n not in speakers_in_scene:
-                s = {"name": n, "lines": 1, "words": len(d.text.split()), "gender": None}
-                if speakers._is_plausible_speaker(s, min_lines=0):
-                    speakers_in_scene.append(n)
+            if not n:
+                continue
+            sub_spks = [n]
+            if " AND " in n.upper() or " & " in n:
+                parts = re.split(r"\s+(?:AND|&)\s+", n, flags=re.IGNORECASE)
+                sub_spks = [parser.normalize_speaker(p) for p in parts if parser.normalize_speaker(p)]
+            for spk in sub_spks:
+                canon_spk = canonical_map.get(spk, spk)
+                if canon_spk and canon_spk not in speakers_in_scene:
+                    s = {"name": canon_spk, "lines": 1, "words": len(d.text.split()), "gender": None}
+                    if speakers._is_plausible_speaker(s, min_lines=0):
+                        speakers_in_scene.append(canon_spk)
         dialogue_lines = []
         for j, d in enumerate(scene.dialogue):
+            spk_norm = parser.normalize_speaker(d.speaker)
+            spk_clean = canonical_map.get(spk_norm, spk_norm) if spk_norm else d.speaker
             line = {
-                "speaker": d.speaker,
+                "speaker": spk_clean,
                 "text": d.text,
                 "parenthetical": d.parenthetical,
                 "sentiment": line_sentiments[di - len(scene.dialogue) + j]
@@ -119,9 +151,6 @@ def tag_script(
                 "dialogue": dialogue_lines if include_dialogue else [],
             }
         )
-
-    # Speaker stats
-    speaker_stats = speakers.speaker_stats(parsed)
 
     # Content classification (genres)
     try:
@@ -151,13 +180,6 @@ def tag_script(
         "segments": seg_meta,
         "speakers": speaker_stats,
     }
-    summary = None
-    if use_llm:
-        from src import summarize
-
-        summary = summarize.generate(
-            "\n".join(d.text for d in parsed.all_dialogue), title=meta["title"]
-        )
     if summary:
         meta["summary"] = summary
     return meta

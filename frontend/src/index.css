@@ -244,3 +244,41 @@ h1, h2, h3, h4, h5, h6 {
     scroll-behavior: auto !important;
   }
 }
+
+/* ---- Movie Credits Animation ---- */
+@keyframes creditsScroll {
+  0% { transform: translateY(100vh); }
+  100% { transform: translateY(-100%); }
+}
+
+.credits-mask {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
+}
+
+.credits-scroll {
+  animation: creditsScroll 20s linear infinite;
+  will-change: transform;
+}
+
+.credits-scroll-paused {
+  /* No animation */
+  transform: translateY(100vh);
+}
+
+/* ---- Projector Flicker ---- */
+@keyframes projectorFlicker {
+  0% { opacity: 0.95; }
+  4% { opacity: 0.85; }
+  8% { opacity: 0.95; }
+  15% { opacity: 1; }
+  30% { opacity: 0.92; }
+  50% { opacity: 0.98; }
+  70% { opacity: 0.88; }
+  85% { opacity: 0.95; }
+  100% { opacity: 1; }
+}
+
+.animate-projector {
+  animation: projectorFlicker 0.15s infinite alternate;
+}

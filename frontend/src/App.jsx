@@ -2,6 +2,7 @@ import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import LandingPage from './pages/LandingPage';
 import AppPage from './pages/AppPage';
+import AboutPage from './pages/AboutPage';
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 
 export default function App() {
@@ -25,6 +26,7 @@ export default function App() {
       <Suspense fallback={<div className="min-h-screen bg-[#050505] flex items-center justify-center text-neutral-500 text-sm">Loading…</div>}>
         <Routes>
           <Route path="/" element={<LandingPage apiConnected={apiConnected} />} />
+          <Route path="/about" element={<AboutPage apiConnected={apiConnected} />} />
           <Route path="/app" element={<AppPage apiConnected={apiConnected} />} />
           <Route path="/dashboard/:id" element={<DashboardPage apiConnected={apiConnected} />} />
         </Routes>

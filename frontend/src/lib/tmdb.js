@@ -81,10 +81,14 @@ export async function getCharacterImages(imdbId, speakerNames) {
       for (const speaker of speakerNames) {
         const normSpeaker = speaker.toLowerCase().trim();
         // find a match in character names (e.g., "Tony Stark" matches "TONY")
-        const match = cast.find(c => 
-          c.character?.toLowerCase().includes(normSpeaker) || 
-          c.name?.toLowerCase().includes(normSpeaker)
-        );
+        const match = cast.find(c => {
+          const charNorm = (c.character || '').toLowerCase().trim();
+          const actorNorm = (c.name || '').toLowerCase().trim();
+          return (
+            (charNorm && (charNorm.includes(normSpeaker) || (charNorm.length >= 3 && normSpeaker.includes(charNorm)))) ||
+            (actorNorm && (actorNorm.includes(normSpeaker) || (actorNorm.length >= 3 && normSpeaker.includes(actorNorm))))
+          );
+        });
         
         if (match && match.profile_path) {
           mapping[speaker] = `https://image.tmdb.org/t/p/w185${match.profile_path}`;
