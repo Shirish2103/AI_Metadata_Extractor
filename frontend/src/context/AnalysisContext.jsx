@@ -33,8 +33,12 @@ export function AnalysisProvider({ children, imdbId }) {
     fetchAnalysis();
   }, [fetchAnalysis]);
 
+  const updateSummary = useCallback((summary) => {
+    setData((prev) => (prev ? { ...prev, summary } : prev));
+  }, []);
+
   return (
-    <AnalysisContext.Provider value={{ data, loading, error, refetch, imdbId }}>
+    <AnalysisContext.Provider value={{ data, loading, error, refetch, updateSummary, imdbId }}>
       {children}
     </AnalysisContext.Provider>
   );

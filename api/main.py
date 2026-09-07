@@ -149,9 +149,11 @@ def get_output_metadata(filename: str):
         import json
         if target.name.endswith(".gz"):
             with gzip.open(target, "rt", encoding="utf-8") as f:
-                return json.load(f)
+                data = json.load(f)
         else:
-            return json.loads(target.read_text(encoding="utf-8"))
+            data = json.loads(target.read_text(encoding="utf-8"))
+        data = _ensure_summary(data, use_llm=True, force_refresh=False)
+        return data
     except Exception as e:
         raise HTTPException(500, f"Failed to read metadata: {str(e)}")
 
@@ -202,17 +204,45 @@ def raw_script(imdb_id: str):
 
 
 def _ensure_summary(meta: dict, use_llm: bool, force_refresh: bool = False) -> dict:
-    if use_llm and meta and isinstance(meta, dict):
-        if force_refresh or not meta.get("summary"):
+    if not meta or not isinstance(meta, dict):
+        return meta
+    if use_llm:
+        current_model = str(meta.get("summary", {}).get("model", "") if isinstance(meta.get("summary"), dict) else "")
+        needs_refresh = force_refresh or not meta.get("summary") or "Offline Fallback" in current_model
+        if needs_refresh:
             from src import summarize
 
-            lines = []
-            for seg in meta.get("segments", []):
-                for d in seg.get("dialogue", []):
-                    if d.get("text"):
-                        lines.append(d["text"])
-            sample_text = "\n".join(lines) if lines else meta.get("title", "")
-            meta["summary"] = summarize.generate(sample_text, title=meta.get("title", ""))
+            sample_text = ""
+            imdb_id = str(meta.get("imdb_id") or "").strip()
+            if imdb_id and imdb_id != "0000000":
+                try:
+                    sample_text = corpus.read_script(imdb_id)
+                except Exception:
+                    pass
+
+            if not sample_text:
+                lines = []
+                for seg in meta.get("segments", []):
+                    h = seg.get("heading")
+                    if h:
+                        lines.append(f"[{h}]")
+                    for d in seg.get("dialogue", []):
+                        spk = d.get("speaker")
+                        txt = d.get("text")
+                        if txt:
+                            lines.append(f"{spk}: {txt}" if spk else txt)
+                sample_text = "\n".join(lines) if lines else meta.get("title", "")
+
+            top_speakers = [s.get("name") for s in meta.get("speakers", []) if isinstance(s, dict) and s.get("name")][:6]
+            new_summary = summarize.generate(sample_text, title=meta.get("title", ""), characters=top_speakers)
+            if new_summary:
+                meta["summary"] = new_summary
+                save_key = imdb_id or meta.get("title")
+                if save_key:
+                    try:
+                        pipeline.save_metadata(save_key, meta)
+                    except Exception as exc:
+                        logger.warning("Could not persist refreshed summary: %s", exc)
     return meta
 
 
@@ -221,43 +251,46 @@ def _ensure_summary(meta: dict, use_llm: bool, force_refresh: bool = False) -> d
 def tag(req: TagRequest):
     if req.imdb_id:
         cached = pipeline.load_cached_metadata(req.imdb_id)
-        if cached is not None and not req.use_transformers:
+        if cached is not None:
             has_dialogue = any(bool(s.get("dialogue")) for s in cached.get("segments", []))
+            has_transformers = any(d.get("emotion") is not None for s in cached.get("segments", []) for d in s.get("dialogue", []))
             needs_dialogue = req.include_dialogue and not has_dialogue
-            if not needs_dialogue:
-                return _ensure_summary(cached, req.use_llm, force_refresh=req.use_llm)
+            
+            if not needs_dialogue and has_transformers:
+                return _ensure_summary(cached, True, force_refresh=False)
         try:
             text = corpus.read_script(req.imdb_id)
         except KeyError:
             if cached is not None:
-                return _ensure_summary(cached, req.use_llm, force_refresh=req.use_llm)
+                return _ensure_summary(cached, True, force_refresh=False)
             raise HTTPException(404, "script not found")
         meta = pipeline.tag_script(
             text,
             imdb_id=req.imdb_id,
             title=corpus.metadata_for(req.imdb_id).get("title", ""),
-            use_transformers=req.use_transformers,
+            use_transformers=True,
             include_dialogue=req.include_dialogue,
-            use_llm=req.use_llm,
+            use_llm=True,
         )
-        meta = _ensure_summary(meta, req.use_llm, force_refresh=req.use_llm)
+        meta = _ensure_summary(meta, True, force_refresh=False)
         pipeline.save_metadata(req.imdb_id, meta)
         return meta
     if req.text:
         cached = pipeline.load_cached_metadata_by_title(req.title) if req.title else None
-        if cached is not None and not req.use_transformers:
+        if cached is not None:
             has_dialogue = any(bool(s.get("dialogue")) for s in cached.get("segments", []))
-            if not req.include_dialogue or has_dialogue:
-                return _ensure_summary(cached, req.use_llm, force_refresh=req.use_llm)
+            has_transformers = any(d.get("emotion") is not None for s in cached.get("segments", []) for d in s.get("dialogue", []))
+            if (not req.include_dialogue or has_dialogue) and has_transformers:
+                return _ensure_summary(cached, True, force_refresh=False)
         meta = pipeline.tag_script(
             req.text,
             imdb_id=req.imdb_id,
             title=req.title,
-            use_transformers=req.use_transformers,
+            use_transformers=True,
             include_dialogue=req.include_dialogue,
-            use_llm=req.use_llm,
+            use_llm=True,
         )
-        meta = _ensure_summary(meta, req.use_llm, force_refresh=req.use_llm)
+        meta = _ensure_summary(meta, True, force_refresh=False)
         pipeline.save_metadata(req.imdb_id or req.title, meta)
         return meta
     raise HTTPException(400, "provide either imdb_id or text")
@@ -274,18 +307,19 @@ async def tag_upload(
     raw = (await file.read()).decode("utf-8", errors="replace")
     title = Path(file.filename).stem if file.filename else ""
     cached = pipeline.load_cached_metadata_by_title(title) if title else None
-    if cached is not None and not use_transformers:
+    if cached is not None:
         has_dialogue = any(bool(s.get("dialogue")) for s in cached.get("segments", []))
-        if not include_dialogue or has_dialogue:
-            return _ensure_summary(cached, use_llm, force_refresh=use_llm)
+        has_transformers = any(d.get("emotion") is not None for s in cached.get("segments", []) for d in s.get("dialogue", []))
+        if (not include_dialogue or has_dialogue) and has_transformers:
+            return _ensure_summary(cached, True, force_refresh=False)
     meta = pipeline.tag_script(
         raw,
         title=title,
-        use_transformers=use_transformers,
+        use_transformers=True,
         include_dialogue=include_dialogue,
-        use_llm=use_llm,
+        use_llm=True,
     )
-    meta = _ensure_summary(meta, use_llm, force_refresh=use_llm)
+    meta = _ensure_summary(meta, True, force_refresh=False)
     pipeline.save_metadata(title, meta)
     return meta
 
@@ -295,6 +329,7 @@ async def tag_upload(
 def metadata(imdb_id: str):
     cached = pipeline.load_cached_metadata(imdb_id)
     if cached:
+        cached = _ensure_summary(cached, use_llm=True, force_refresh=False)
         return cached
     try:
         text = corpus.read_script(imdb_id)
@@ -305,9 +340,34 @@ def metadata(imdb_id: str):
         imdb_id=imdb_id,
         title=corpus.metadata_for(imdb_id).get("title", ""),
         use_transformers=False,
+        use_llm=True,
     )
+    meta = _ensure_summary(meta, use_llm=True, force_refresh=False)
     pipeline.save_metadata(imdb_id, meta)
     return meta
+
+
+@app.post("/metadata/{imdb_id}/summary")
+@app.post("/api/metadata/{imdb_id}/summary")
+def refresh_summary(imdb_id: str):
+    cached = pipeline.load_cached_metadata(imdb_id)
+    if not cached:
+        try:
+            text = corpus.read_script(imdb_id)
+            meta = pipeline.tag_script(
+                text,
+                imdb_id=imdb_id,
+                title=corpus.metadata_for(imdb_id).get("title", ""),
+                use_transformers=False,
+                use_llm=True,
+            )
+            pipeline.save_metadata(imdb_id, meta)
+            return {"summary": meta.get("summary")}
+        except Exception:
+            raise HTTPException(404, "Metadata or script not found")
+    cached = _ensure_summary(cached, use_llm=True, force_refresh=True)
+    pipeline.save_metadata(imdb_id, cached)
+    return {"summary": cached.get("summary")}
 
 if DIST_DIR.exists():
     # SPA fallback for dashboard/app routes — must be defined before static mount so they take precedence

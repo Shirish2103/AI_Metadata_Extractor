@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Clapperboard, Menu, ArrowLeft } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -58,8 +59,8 @@ export default function Header({ apiConnected, variant = 'landing', onBack }) {
         {/* Right Nav */}
         <div className="flex items-center gap-2 bg-[#1A1A1A]/80 backdrop-blur-md rounded-full p-1.5 border border-white/10">
           <nav className="hidden md:flex items-center px-5 gap-6 text-sm font-medium text-neutral-300">
-            <a href="#" className="hover:text-white transition-colors">Home</a>
-            <a href="#" className="hover:text-white transition-colors">About</a>
+            <Link to="/" className="hover:text-white transition-colors">Home</Link>
+            <Link to="/about" className="hover:text-white transition-colors">About</Link>
             <a href="#" className="hover:text-white transition-colors">Portfolio</a>
             <a href="#" className="hover:text-white transition-colors">Blog</a>
           </nav>
