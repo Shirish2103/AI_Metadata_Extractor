@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Search, Hash, Tag, Users, MapPin, Building, Filter } from 'lucide-react';
+import { Search, Hash, Tag, Users, MapPin, Filter } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 export default function TopicEntityExplorer({ meta }) {
@@ -21,6 +21,7 @@ export default function TopicEntityExplorer({ meta }) {
   const filteredEntities = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return entities.filter((e) => {
+      if ((e.type || e.label || '').toUpperCase() === 'ORGANIZATION') return false;
       const name = (e.name || e.text || '').toLowerCase();
       if (typeFilter !== 'ALL' && (e.type || e.label) !== typeFilter) return false;
       if (needle && !name.includes(needle)) return false;
@@ -29,7 +30,7 @@ export default function TopicEntityExplorer({ meta }) {
   }, [entities, q, typeFilter]);
 
   const entityTypes = useMemo(() => {
-    const s = new Set(entities.map((e) => e.type || e.label).filter(Boolean));
+    const s = new Set(entities.filter((e) => (e.type || e.label || '').toUpperCase() !== 'ORGANIZATION').map((e) => e.type || e.label).filter(Boolean));
     return ['ALL', ...[...s].sort()];
   }, [entities]);
 
@@ -101,23 +102,16 @@ export default function TopicEntityExplorer({ meta }) {
               <thead className="sticky top-0 bg-[#050505]/95 backdrop-blur-md border-b border-white/5 z-10">
                 <tr className="text-[10px] font-bold tracking-widest uppercase text-neutral-500">
                   <th className="text-left px-8 py-4">Keyword</th>
-                  <th className="text-right px-4 py-4">Score</th>
-                  <th className="text-right px-8 py-4">Scenes</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/[0.03]">
                 {filteredTopics.length ? filteredTopics.map((t,i)=>{
-                  const scenesPresent = segments.filter((s)=> (s.topics||[]).some(k=>k.keyword===t.keyword)).length;
                   return (
                     <tr key={i} className="hover:bg-white/[0.02] transition-colors group">
                       <td className="px-8 py-4 text-white font-medium group-hover:text-indigo-400 transition-colors">{t.keyword}</td>
-                      <td className="px-4 py-4 text-right font-mono text-neutral-400">{(t.score).toFixed(2)}</td>
-                      <td className="px-8 py-4 text-right font-mono text-neutral-500">
-                        <span className="px-2 py-1 rounded-md bg-white/5 text-xs">{scenesPresent}</span>
-                      </td>
                     </tr>
                   );
-                }) : <tr><td colSpan={3} className="px-8 py-16 text-center text-neutral-500 italic">No topics match your search.</td></tr>}
+                }) : <tr><td colSpan={1} className="px-8 py-16 text-center text-neutral-500 italic">No topics match your search.</td></tr>}
               </tbody>
             </table>
           </div>
@@ -132,7 +126,7 @@ export default function TopicEntityExplorer({ meta }) {
               </div>
               <div>
                 <h3 className="font-display text-xl font-bold text-white tracking-tight leading-none">Named Entities</h3>
-                <p className="text-[10px] uppercase tracking-widest text-neutral-500 mt-1">People, Places, Orgs</p>
+                <p className="text-[10px] uppercase tracking-widest text-neutral-500 mt-1">People & Places</p>
               </div>
             </div>
             <span className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-mono text-neutral-400">{filteredEntities.length} Total</span>
@@ -150,7 +144,7 @@ export default function TopicEntityExplorer({ meta }) {
                 {filteredEntities.length ? filteredEntities.map((e,i)=>{
                   const name = e.name || e.text || 'Unnamed';
                   const type = e.type || e.label || 'ENTITY';
-                  const Icon = type==='PERSON' ? Users : type==='LOCATION' ? MapPin : type==='ORGANIZATION' ? Building : Tag;
+                  const Icon = type==='PERSON' ? Users : type==='LOCATION' ? MapPin : Tag;
                   return (
                     <tr key={i} className="hover:bg-white/[0.02] transition-colors group">
                       <td className="px-8 py-4 text-white font-medium flex items-center gap-3">
@@ -168,7 +162,6 @@ export default function TopicEntityExplorer({ meta }) {
                         <span className={cn('px-2.5 py-1 rounded-lg text-[10px] uppercase tracking-wider font-bold',
                           type==='PERSON' ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : 
                           type==='LOCATION' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 
-                          type==='ORGANIZATION' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 
                           'bg-white/5 text-neutral-400 border border-white/10'
                         )}>{type}</span>
                       </td>

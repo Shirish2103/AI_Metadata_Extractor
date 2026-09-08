@@ -13,7 +13,7 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from src import corpus, pipeline
+from src import corpus, entity_resolution, ner, pipeline
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("api")
@@ -71,6 +71,49 @@ app = FastAPI(title="ScriptTagger API", version="1.0.0")
 app.add_middleware(
     CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
 )
+
+
+def _correct_cached_entities(meta: dict) -> dict:
+    """Apply current speaker-aware NER rules to metadata created by older builds."""
+    speakers = [s.get("name", "") for s in meta.get("speakers", []) if isinstance(s, dict)]
+    overall = meta.get("overall", {})
+    if isinstance(overall.get("entities"), list):
+        overall["entities"] = ner._merge_entities(ner.promote_speaker_entities(overall["entities"], speakers))
+    return meta
+
+
+def _cached_script_context(meta: dict) -> str:
+    """Reconstruct useful semantic context from stored screenplay segments."""
+    lines: list[str] = []
+    for segment in meta.get("segments", []):
+        if not isinstance(segment, dict):
+            continue
+        if segment.get("heading"):
+            lines.append(f"[{segment['heading']}]")
+        for dialogue in segment.get("dialogue", []):
+            if not isinstance(dialogue, dict) or not dialogue.get("text"):
+                continue
+            speaker = dialogue.get("speaker")
+            lines.append(f"{speaker}: {dialogue['text']}" if speaker else str(dialogue["text"]))
+    return "\n".join(lines)
+
+
+def _resolve_cached_entities(meta: dict) -> tuple[dict, bool]:
+    """Semantically resolve a legacy output once, then retain its result."""
+    overall = meta.get("overall", {})
+    if not isinstance(overall.get("entities"), list):
+        return meta, False
+    previous = overall.get("entity_resolution", {})
+    if isinstance(previous, dict) and previous.get("applied") and previous.get("version") == entity_resolution.RESOLUTION_VERSION:
+        return meta, False
+    context = _cached_script_context(meta)
+    if not context:
+        overall["entity_resolution"] = {"enabled": False, "applied": False, "reason": "cached output has no dialogue context"}
+        return meta, False
+    entities, resolution = entity_resolution.resolve(overall["entities"], context, title=str(meta.get("title", "")))
+    overall["entities"] = entities
+    overall["entity_resolution"] = resolution
+    return meta, bool(resolution.get("applied"))
 
 
 @app.get("/")
@@ -152,7 +195,9 @@ def get_output_metadata(filename: str):
                 data = json.load(f)
         else:
             data = json.loads(target.read_text(encoding="utf-8"))
-        data = _ensure_summary(data, use_llm=True, force_refresh=False)
+        # Upgrade old cached metadata from its screenplay speaker roster,
+        # without requiring the entire raw corpus to be tagged again.
+        data = _correct_cached_entities(data)
         return data
     except Exception as e:
         raise HTTPException(500, f"Failed to read metadata: {str(e)}")
@@ -252,17 +297,15 @@ def tag(req: TagRequest):
     if req.imdb_id:
         cached = pipeline.load_cached_metadata(req.imdb_id)
         if cached is not None:
-            has_dialogue = any(bool(s.get("dialogue")) for s in cached.get("segments", []))
-            has_transformers = any(d.get("emotion") is not None for s in cached.get("segments", []) for d in s.get("dialogue", []))
-            needs_dialogue = req.include_dialogue and not has_dialogue
-            
-            if not needs_dialogue and has_transformers:
-                return _ensure_summary(cached, True, force_refresh=False)
+            # Existing output metadata is authoritative for a movie selection.
+            # Do not rerun the expensive pipeline just because an older cache
+            # lacks optional dialogue or transformer-emotion fields.
+            return cached
         try:
             text = corpus.read_script(req.imdb_id)
         except KeyError:
             if cached is not None:
-                return _ensure_summary(cached, True, force_refresh=False)
+                return cached
             raise HTTPException(404, "script not found")
         meta = pipeline.tag_script(
             text,
@@ -281,7 +324,7 @@ def tag(req: TagRequest):
             has_dialogue = any(bool(s.get("dialogue")) for s in cached.get("segments", []))
             has_transformers = any(d.get("emotion") is not None for s in cached.get("segments", []) for d in s.get("dialogue", []))
             if (not req.include_dialogue or has_dialogue) and has_transformers:
-                return _ensure_summary(cached, True, force_refresh=False)
+                return cached
         meta = pipeline.tag_script(
             req.text,
             imdb_id=req.imdb_id,
@@ -311,7 +354,7 @@ async def tag_upload(
         has_dialogue = any(bool(s.get("dialogue")) for s in cached.get("segments", []))
         has_transformers = any(d.get("emotion") is not None for s in cached.get("segments", []) for d in s.get("dialogue", []))
         if (not include_dialogue or has_dialogue) and has_transformers:
-            return _ensure_summary(cached, True, force_refresh=False)
+            return cached
     meta = pipeline.tag_script(
         raw,
         title=title,
@@ -329,7 +372,7 @@ async def tag_upload(
 def metadata(imdb_id: str):
     cached = pipeline.load_cached_metadata(imdb_id)
     if cached:
-        cached = _ensure_summary(cached, use_llm=True, force_refresh=False)
+        cached = _correct_cached_entities(cached)
         return cached
     try:
         text = corpus.read_script(imdb_id)

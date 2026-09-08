@@ -26,7 +26,10 @@ for p in POSSIBLE_ROOTS:
         DATASET_ROOT = p
         break
 
-RAW_TEXTS_DIR = DATASET_ROOT / "screenplay_data/data/raw_texts/raw_texts"
+_EXPECTED_RAW_TEXTS_DIR = DATASET_ROOT / "screenplay_data/data/raw_texts/raw_texts"
+# Support both the original Kaggle archive layout and a project-local archive
+# containing screenplay files directly under archives/.
+RAW_TEXTS_DIR = _EXPECTED_RAW_TEXTS_DIR if _EXPECTED_RAW_TEXTS_DIR.exists() else DATASET_ROOT
 RULE_BASED_DIR = DATASET_ROOT / "screenplay_data/data/rule_based_annotations/rule_based_annotations"
 MANUAL_ANNO_DIR = DATASET_ROOT / "screenplay_data/data/manual_annotations/manual_annotations"
 BERT_ANNO_DIR = DATASET_ROOT / "screenplay_data/data/BERT_annotations/BERT_annotations"

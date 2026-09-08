@@ -3,7 +3,6 @@ version: "3.8"
 services:
   api:
     build: .
-    container_name: hackathon_api
     command: python -m uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
     ports:
       - "8000:8000"
@@ -12,9 +11,12 @@ services:
       - ./src:/app/src
       - ./data:/app/data
       - ./outputs:/app/outputs
+      - ./archive:/app/archives
     environment:
       - PYTHONUNBUFFERED=1
-      - DATASET_ROOT=${DATASET_ROOT:-}
+      # The raw dataset lives beside the project and is available in Docker.
+      # Override DATASET_ROOT only when deliberately using another dataset.
+      - DATASET_ROOT=${DATASET_ROOT:-/app/archives}
     develop:
       watch:
         - action: sync

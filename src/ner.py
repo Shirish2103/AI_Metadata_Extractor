@@ -2,6 +2,7 @@
 
 import logging
 import os
+import re
 from functools import lru_cache
 
 from src.parser import ParsedScript, normalize_speaker
@@ -18,6 +19,19 @@ LABEL_ALIASES = {
     "ORG": "ORGANIZATION",
     "LAW": "ORGANIZATION",
     "WORK_OF_ART": "PRODUCT",
+}
+
+ORG_SUFFIXES = {
+    "industries", "industry", "studios", "studio", "inc", "incorporated",
+    "corp", "corporation", "ltd", "limited", "llc", "co", "company",
+}
+
+# Verbs commonly found in uppercase screenplay action lines that the parser
+# must never use as evidence for a dialogue-speaker identity.
+ACTION_HEADING_WORDS = {
+    "touches", "surveys", "tightens", "watches", "ducks", "taps", "swings",
+    "kicks", "seizes", "exits", "enters", "walks", "runs", "looks", "turns",
+    "grabs", "holds", "stands", "sits", "takes", "moves", "falls", "stares",
 }
 
 # Single-word descriptors / generic nouns that are NOT character names.
@@ -55,6 +69,79 @@ def load_spacy(model: str = DEFAULT_SPACY_MODEL):
 
 def _canonical_label(label: str) -> str:
     return LABEL_ALIASES.get(label, label)
+
+
+def _speaker_names(script: ParsedScript) -> set[str]:
+    """Return normalized character names parsed from screenplay dialogue headings."""
+    return {
+        name.lower()
+        for line in script.all_dialogue
+        if (name := normalize_speaker(line.speaker))
+    }
+
+
+def _matching_speaker(text: str, speakers: set[str]) -> str | None:
+    """Return the matched speaker name, without treating action text as a name."""
+    low = re.sub(r"(?:'s|’s|âs)$", "", text.strip().lower()).strip()
+    if not low or not speakers or "," in low or " and " in low:
+        return None
+    words = low.split()
+    if len(words) > 2 or any(word.rstrip("'s") in ORG_SUFFIXES for word in words):
+        return None
+
+    # Endgame-style time-travel scene labels use A1 (often OCR'd as Al/AI),
+    # as in "A1 TONY'S". It is a scene marker, not part of a character name.
+    variants = [low]
+    if len(words) == 2 and words[0] in {"a1", "al", "ai"}:
+        variants.append(words[1])
+
+    trusted_speakers = {
+        speaker for speaker in speakers
+        if len(speaker.split()) <= 3 and not any(word in ACTION_HEADING_WORDS for word in speaker.split()[1:])
+    }
+    for candidate in variants:
+        # Exact identity wins. This prevents A1 STEVE from being matched to
+        # OLD STEVE merely because both contain the word "steve".
+        if candidate in trusted_speakers:
+            return candidate
+    for candidate in variants:
+        # A one-word entity can be a short form of a multi-word speaker
+        # (Scott -> Scott Lang). Never apply this to multi-word action text
+        # such as "Steve tightens".
+        if len(candidate.split()) == 1:
+            matches = [speaker for speaker in trusted_speakers if candidate in speaker.split()]
+            if matches:
+                return min(matches, key=lambda speaker: (len(speaker.split()), len(speaker)))
+    return None
+
+
+def _matches_speaker(text: str, speakers: set[str]) -> bool:
+    return _matching_speaker(text, speakers) is not None
+
+
+def promote_speaker_entities(entities: list[dict], speaker_names: list[str] | set[str]) -> list[dict]:
+    """Promote entity matches for screenplay speakers to PERSON.
+
+    Speaker headings are structured screenplay evidence and are more reliable
+    than a general-purpose NER model for uppercase fictional character names.
+    """
+    speakers = {
+        normalized.lower()
+        for name in speaker_names
+        if (normalized := normalize_speaker(name))
+    }
+    for entity in entities:
+        text = str(entity.get("text") or entity.get("name") or "")
+        matched_speaker = _matching_speaker(text, speakers)
+        is_speaker = matched_speaker is not None
+        entity["is_speaker"] = is_speaker
+        if is_speaker:
+            entity["label"] = "PERSON"
+            entity["type"] = "PERSON"
+            # Canonicalize short forms, possessives and A1 scene-marker forms
+            # to the actual screenplay speaker heading.
+            entity["text"] = entity["name"] = matched_speaker
+    return entities
 
 
 def _is_valid_person(text: str) -> bool:
@@ -174,6 +261,7 @@ class NERExtractor:
 
     def extract(self, script: ParsedScript) -> dict:
         """Return {global_entities: [...], scene_entities: {scene_index: [...]}}."""
+        speaker_names = _speaker_names(script)
         docs_by_scene = {}
         for scene in script.scenes:
             texts = [d.text for d in scene.dialogue] + scene.action
@@ -190,6 +278,10 @@ class NERExtractor:
                         continue
                     label_val = _canonical_label(ent.label_)
                     text_val = _clean(ent.text)
+                    # A parsed dialogue heading is stronger evidence than the
+                    # generic NER model for an all-caps fictional character.
+                    if _matches_speaker(text_val, speaker_names):
+                        label_val = "PERSON"
                     # Filter descriptors mis-labelled as PERSON (e.g. "Brunette")
                     if label_val == "PERSON" and not _is_valid_person(text_val):
                         continue

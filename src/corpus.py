@@ -76,7 +76,7 @@ def _scan_dir(directory: Path, suffix: str):
     if not directory.exists():
         return {}
     out = {}
-    for p in directory.iterdir():
+    for p in directory.rglob("*"):
         if p.name.endswith(suffix):
             m = FILE_RE.match(p.name)
             if m:
@@ -131,9 +131,36 @@ def _build_index_from_outputs() -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def _build_index_from_raw() -> pd.DataFrame:
+    """Build a minimal catalog when an archive has scripts but no metadata CSV."""
+    rows = []
+    for p in sorted(RAW_TEXTS_DIR.rglob("*.txt")) if RAW_TEXTS_DIR.exists() else []:
+        match = FILE_RE.match(p.name)
+        if not match:
+            continue
+        rows.append({
+            "imdbid": match.group("imdbid").zfill(7),
+            "title": match.group("title").replace("_", " "),
+            "script_path": str(p),
+            "genres": "",
+            "year": None,
+            "has_rule_based": False,
+            "has_bert_anno": False,
+            "has_manual_anno": False,
+            "has_characters": False,
+            "rule_based_path": "",
+            "bert_anno_path": "",
+            "manual_anno_path": "",
+            "characters_path": "",
+        })
+    return pd.DataFrame(rows)
+
+
 def build_index() -> pd.DataFrame:
     if not META_CSV.exists():
-        idx = _build_index_from_outputs()
+        idx = _build_index_from_raw()
+        if idx.empty:
+            idx = _build_index_from_outputs()
         idx.to_csv(INDEX_CSV, index=False)
         return idx
 
@@ -170,6 +197,29 @@ def build_index() -> pd.DataFrame:
         idx = idx.drop(columns=["title_x", "title_y"])
     elif "title_x" in idx.columns:
         idx = idx.rename(columns={"title_x": "title"})
+
+    # The metadata catalog is larger than the screenplay subset. Keep those
+    # metadata-only movies visible in the UI; selecting one without a raw
+    # screenplay will produce a clear "script not found" response, while
+    # titles with an archive file resolve normally through script_path().
+    indexed_ids = set(idx["imdbid"].astype(str)) if not idx.empty else set()
+    missing_meta = meta[~meta["imdbid"].astype(str).isin(indexed_ids)].copy()
+    if not missing_meta.empty:
+        defaults = {
+            "script_path": "",
+            "has_rule_based": False,
+            "has_bert_anno": False,
+            "has_manual_anno": False,
+            "has_characters": False,
+            "rule_based_path": "",
+            "bert_anno_path": "",
+            "manual_anno_path": "",
+            "characters_path": "",
+        }
+        for key, value in defaults.items():
+            if key not in missing_meta.columns:
+                missing_meta[key] = value
+        idx = pd.concat([idx, missing_meta], ignore_index=True, sort=False)
     idx.to_csv(INDEX_CSV, index=False)
     return idx
 
@@ -225,10 +275,19 @@ def load_index() -> pd.DataFrame:
 
     output_df = _fast_scan_outputs()
 
-    # If the cached index is empty/stale but the dataset is present, rebuild
-    # so the catalog actually shows movies instead of falling back to 1 output row.
-    if base_df.empty and (META_CSV.exists() or RAW_TEXTS_DIR.exists()):
-        logger.info("Cached index empty/stale but dataset found — rebuilding corpus index...")
+    # Keep the metadata catalog even when its script paths were generated on a
+    # different machine. script_path() below remaps those paths by IMDb ID to
+    # the mounted archives directory, while this preserves all 2800+ titles in
+    # the UI even before their raw archive is mounted.
+    metadata_catalog_larger = False
+    if META_CSV.exists() and not base_df.empty:
+        try:
+            metadata_catalog_larger = len(pd.read_csv(META_CSV, usecols=["imdbid"])) > len(base_df)
+        except Exception:
+            metadata_catalog_larger = False
+
+    if (base_df.empty or metadata_catalog_larger) and (META_CSV.exists() or RAW_TEXTS_DIR.exists()):
+        logger.info("Corpus index is empty — rebuilding from the available dataset...")
         df = build_index()
     elif output_df.empty:
         df = base_df if not base_df.empty else build_index()
@@ -251,16 +310,17 @@ def script_path(imdbid: str) -> Path:
     # An empty script_path written to the CSV index round-trips back as NaN
     # (float), not "" — and NaN is truthy in Python, so a plain falsy check
     # doesn't catch it. pd.isna() is required to detect both cases.
-    if row.empty or pd.isna(raw_path) or not raw_path:
-        raise KeyError(f"imdbid {imdbid} not in corpus")
-    path = Path(raw_path)
-    if not path.exists():
-        # The index can outlive the filesystem layout it was built against
-        # (e.g. a stale data/corpus_index.csv left over from a run with a
-        # different DATASET_ROOT/mount) — treat that the same as "not in
-        # corpus" rather than letting a raw FileNotFoundError surface.
-        raise KeyError(f"imdbid {imdbid} script file missing: {path}")
-    return path
+    if not row.empty and not pd.isna(raw_path) and raw_path:
+        path = Path(str(raw_path))
+        if path.exists():
+            return path
+
+    # Recover from an index made on a different host, or from a raw-only
+    # archive that has not produced a fresh corpus_index.csv yet.
+    candidates = list(RAW_TEXTS_DIR.rglob(f"*_{imdbid}.txt")) if RAW_TEXTS_DIR.exists() else []
+    if candidates:
+        return candidates[0]
+    raise KeyError(f"imdbid {imdbid} not in corpus")
 
 
 def read_script(imdbid: str) -> str:

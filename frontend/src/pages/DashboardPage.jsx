@@ -26,7 +26,13 @@ function DashboardInner({ apiConnected }) {
     }
   }, [meta]);
 
-  const handleBack = () => navigate('/app');
+  const handleBack = () => {
+    if (activeTab !== 'overview') {
+      setActiveTab('overview');
+    } else {
+      navigate('/app');
+    }
+  };
 
   if (loading) {
     return (

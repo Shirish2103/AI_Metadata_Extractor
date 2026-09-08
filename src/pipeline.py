@@ -6,7 +6,7 @@ import logging
 import re
 from pathlib import Path
 
-from src import classify, ner, parser, segmentation, sentiment, speakers, srt, topics
+from src import classify, entity_resolution, ner, parser, segmentation, semantic_topics, sentiment, speakers, srt, topics
 from src.config import OUTPUTS_DIR
 
 logger = logging.getLogger(__name__)
@@ -87,6 +87,12 @@ def tag_script(
     # Topics
     scene_topic_lists = topics.scene_topics(parsed, scene_texts, top_n=8)
     overall_topics = topics.overall_topics(parsed, top_n=25, summary=summary)
+    overall_keywords = list(overall_topics)
+    topic_resolution_meta = {"enabled": False, "applied": False, "reason": "LLM disabled for this run"}
+    if use_llm:
+        overall_topics, overall_keywords, topic_resolution_meta = semantic_topics.resolve(
+            script_text, overall_topics, title=parsed.title or title, summary=summary, top_n=25
+        )
 
     # Sentiment (VADER) + optional transformer emotion per dialogue line
     dialogue_texts = [d.text for d in parsed.all_dialogue]
@@ -99,6 +105,14 @@ def tag_script(
     # Speaker stats and canonical mapping
     speaker_stats = speakers.speaker_stats(parsed)
     canonical_map = speakers.build_canonical_speaker_mapping(parsed)
+
+    # Optional semantic pass: resolves ambiguous NER types and aliases from
+    # whole-script context while preserving trusted screenplay speaker labels.
+    entity_resolution_meta = {"enabled": False, "applied": False, "reason": "LLM disabled for this run"}
+    if use_llm:
+        global_entities, entity_resolution_meta = entity_resolution.resolve(
+            global_entities, script_text, title=parsed.title or title
+        )
 
     # Build per-scene aggregates
     seg_meta = []
@@ -170,7 +184,10 @@ def tag_script(
         "known_genres": known_genres,
         "overall": {
             "topics": overall_topics,
+            "keywords": overall_keywords,
+            "topic_resolution": topic_resolution_meta,
             "entities": global_entities,
+            "entity_resolution": entity_resolution_meta,
             "sentiment": sentiment.aggregate_sentiment(line_sentiments),
             "emotion": sentiment.aggregate_emotion(line_emotions),
             "num_scenes": len(parsed.scenes),
