@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell, Legend, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, LineChart, Line, Treemap
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell, Legend, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, LineChart, Line, Treemap, AreaChart, Area
 } from 'recharts';
 
 const COLORS = {
@@ -86,6 +86,23 @@ export default function AnalyticsDeepDive({ meta }) {
   const speakerCounts = {};
   segments.forEach((seg) => (seg.speakers || []).forEach((sp) => { speakerCounts[sp] = (speakerCounts[sp] || 0) + 1; }));
   const speakerNetworkData = Object.entries(speakerCounts).map(([name, count]) => ({ name, count })).sort((a,b)=>b.count-a.count).slice(0, 8);
+
+  const emotionTimelineData = segments.map((s, i) => {
+    const dist = s.emotion?.distribution || {};
+    const total = s.emotion?.n || 1; // avoid division by zero
+    // Only include scenes with at least some dialogue/emotion data
+    if (total === 0 && !s.emotion?.label) return null;
+    return {
+      scene: `S${s.segment_id || i + 1}`,
+      joy: Number((((dist.joy || 0) / total) * 100).toFixed(1)),
+      sadness: Number((((dist.sadness || 0) / total) * 100).toFixed(1)),
+      anger: Number((((dist.anger || 0) / total) * 100).toFixed(1)),
+      fear: Number((((dist.fear || 0) / total) * 100).toFixed(1)),
+      surprise: Number((((dist.surprise || 0) / total) * 100).toFixed(1)),
+      disgust: Number((((dist.disgust || 0) / total) * 100).toFixed(1)),
+      neutral: Number((((dist.neutral || 0) / total) * 100).toFixed(1)),
+    };
+  }).filter(Boolean);
 
   return (
     <div className="flex flex-col gap-6">
@@ -267,6 +284,67 @@ export default function AnalyticsDeepDive({ meta }) {
             </ResponsiveContainer>
           </div>
         </div>
+      </div>
+
+      {/* Emotional Variance Area Chart */}
+      <div className="ui-card rounded-[24px] p-8 w-full">
+        <div className="mb-6">
+          <h3 className="font-display text-xl font-bold text-white mb-1 tracking-tight">Emotional Variance</h3>
+          <p className="text-[10px] uppercase tracking-widest text-neutral-500">Scene-by-Scene Emotion Distribution (100% Stacked)</p>
+        </div>
+        
+        {emotionTimelineData.length > 0 ? (
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={emotionTimelineData} margin={{ left: -10, right: 10, top: 10, bottom: 0 }} stackOffset="expand">
+                <defs>
+                  <linearGradient id="colorJoy" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.2}/>
+                  </linearGradient>
+                  <linearGradient id="colorSadness" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0.2}/>
+                  </linearGradient>
+                  <linearGradient id="colorAnger" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="#f43f5e" stopOpacity={0.2}/>
+                  </linearGradient>
+                  <linearGradient id="colorFear" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.2}/>
+                  </linearGradient>
+                  <linearGradient id="colorSurprise" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#d946ef" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="#d946ef" stopOpacity={0.2}/>
+                  </linearGradient>
+                  <linearGradient id="colorDisgust" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0.2}/>
+                  </linearGradient>
+                  <linearGradient id="colorNeutral" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#737373" stopOpacity={0.5}/>
+                    <stop offset="95%" stopColor="#737373" stopOpacity={0.1}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid stroke={COLORS.grid} strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="scene" tick={{ fill: COLORS.tick, fontSize: 10, fontFamily: 'monospace' }} axisLine={false} tickLine={false} interval={Math.ceil(emotionTimelineData.length/15)} />
+                <YAxis tickFormatter={(val) => `${(val * 100).toFixed(0)}%`} tick={{ fill: COLORS.tick, fontSize: 10, fontFamily: 'monospace' }} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={TIP} formatter={(value, name) => [`${value}%`, name.charAt(0).toUpperCase() + name.slice(1)]} />
+                <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', paddingTop: '20px' }} />
+                <Area type="monotone" dataKey="anger" stackId="1" stroke="#f43f5e" fill="url(#colorAnger)" />
+                <Area type="monotone" dataKey="fear" stackId="1" stroke="#8b5cf6" fill="url(#colorFear)" />
+                <Area type="monotone" dataKey="sadness" stackId="1" stroke="#0ea5e9" fill="url(#colorSadness)" />
+                <Area type="monotone" dataKey="disgust" stackId="1" stroke="#10b981" fill="url(#colorDisgust)" />
+                <Area type="monotone" dataKey="surprise" stackId="1" stroke="#d946ef" fill="url(#colorSurprise)" />
+                <Area type="monotone" dataKey="joy" stackId="1" stroke="#f59e0b" fill="url(#colorJoy)" />
+                <Area type="monotone" dataKey="neutral" stackId="1" stroke="#737373" fill="url(#colorNeutral)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <p className="text-[11px] text-neutral-500 italic mt-10 text-center">No scene-by-scene emotion data available.</p>
+        )}
       </div>
     </div>
   );
