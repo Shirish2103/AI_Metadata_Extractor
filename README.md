@@ -2,6 +2,8 @@
 
 **ScriptTagger** is an end-to-end NLP & Machine Learning pipeline designed to ingest movie screenplays and media subtitle transcripts (`.txt`, `.srt`) and automatically extract rich, structured metadata for content indexing, archiving, recommendations, compliance, and deep media analytics.
 
+> **Project Highlight:** ScriptTagger combines screenplay parsing, natural language processing, and machine learning to transform unstructured movie scripts and subtitle transcripts into structured, searchable, and analysis-ready metadata.
+
 ---
 
 ## Key Features
