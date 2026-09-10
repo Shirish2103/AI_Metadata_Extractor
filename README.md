@@ -191,6 +191,9 @@ Launch FastAPI server (which automatically serves the compiled React app):
 ```bash
 python -m uvicorn api.main:app --port 8000
 ```
+
+> ⚠️ **First Startup Note:** The application may take some time to become fully ready on the first run because NLP and Machine Learning models (such as the spaCy language model and genre classifier) need to be loaded into memory. Subsequent requests are faster because the loaded models remain available while the server is running.
+
 - Open **[http://localhost:8000](http://localhost:8000)** in your browser.
 - Swagger API Docs available at **[http://localhost:8000/docs](http://localhost:8000/docs)**.
 
