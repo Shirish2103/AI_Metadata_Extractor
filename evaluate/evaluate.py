@@ -185,13 +185,13 @@ def eval_keywords(sample: int = 40, seed: int = 7, top_n: int = 15) -> dict:
 
 
 def run_all(sample: int = 30):
-    print("== Scene segmentation (vs rule_based) ==")
+    print("== Scene segmentation ==")
     print(eval_scene_segmentation(sample))
-    print("== Line-type classification (vs BERT/manual) ==")
+    print("== Line-type classification ==")
     print(eval_line_types(sample))
-    print("== Speaker recovery (vs rule_based) ==")
+    print("== Speaker recovery ==")
     print(eval_speakers(sample))
-    print("== Keyword overlap (vs metadata keywords) ==")
+    print("== Keyword overlap ==")
     print(eval_keywords(sample))
 
 
