@@ -121,7 +121,7 @@ export default function OverviewTab({ meta }) {
             {meta.summary?.synopsis || 'No synopsis available. Enable LLM Synopsis during analysis to generate an AI synopsis and compliance flags.'}
           </p>
           
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 hidden">
              <button className="flex items-center gap-2 bg-white text-black px-8 py-3.5 rounded-xl font-bold hover:bg-neutral-200 transition-colors shadow-2xl shadow-black">
                 <Play className="w-5 h-5 fill-current" /> Play Analysis
              </button>
